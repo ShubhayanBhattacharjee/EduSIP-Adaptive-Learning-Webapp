@@ -394,6 +394,66 @@ exports.finishQuiz = async (req, res) => {
 };
 
 /* =====================================================
+   RESUME: the quiz the student left half-way (served within the last 2 hours, not finished)
+   GET /quiz/active  ->  { active: null } or { active: { sessionId, mode, subject, topic, total, answered, hintsUsed, question } }
+===================================================== */
+exports.activeSession = async (req, res) => {
+  try {
+    const open = await Exposure.findOne({
+      user: req.user.id, answered: false, mode: { $ne: "placement" },
+      servedAt: { $gt: new Date(Date.now() - 2 * 3600 * 1000) },
+    }).sort({ servedAt: -1 }).lean();
+    if (!open) return res.json({ success: true, active: null });
+
+    if (await QuizAttempt.exists({ user: req.user.id, sessionId: open.sessionId })) return res.json({ success: true, active: null });
+    const q = await Question.findById(open.question).lean();
+    if (!q) return res.json({ success: true, active: null });
+
+    const answered = await Response.countDocuments({ user: req.user.id, sessionId: open.sessionId });
+    const total = open.sessionTotal || SESSION_LENGTH[open.mode] || 10;
+    if (answered >= total) return res.json({ success: true, active: null });
+
+    res.json({
+      success: true,
+      active: {
+        sessionId: open.sessionId, mode: open.mode, subject: open.subject, topic: open.topic,
+        total, answered, hintsUsed: open.hintsUsed || 0, question: adaptive.publicQuestion(q),
+      },
+    });
+  } catch (error) {
+    console.error("Active session error:", error);
+    res.status(500).json({ success: false });
+  }
+};
+
+/* =====================================================
+   MY SKILLS: the student's level (1-10) in every topic they have been rated in
+   GET /quiz/my-skills?subject=
+===================================================== */
+exports.mySkills = async (req, res) => {
+  try {
+    const filter = { user: req.user.id };
+    if (req.query.subject) filter.subject = ci(req.query.subject);
+    const rows = await SkillState.find(filter).lean();
+    const shape = (s) => {
+      const level = toScale(s.ability);
+      return {
+        subject: s.subject, topic: s.topic === OVERALL ? null : s.topic, ability: Number(s.ability.toFixed(2)),
+        level, band: adaptive.bandOf(level), attempts: s.attempts || 0, lastPracticedAt: s.lastPracticedAt || null,
+      };
+    };
+    res.json({
+      success: true,
+      subjects: rows.filter((s) => s.topic === OVERALL).map(shape).sort((a, b) => a.subject.localeCompare(b.subject)),
+      topics: rows.filter((s) => s.topic !== OVERALL).map(shape).sort((a, b) => a.level - b.level),
+    });
+  } catch (error) {
+    console.error("My skills error:", error);
+    res.status(500).json({ success: false });
+  }
+};
+
+/* =====================================================
    STUDY PLAN: what should this student study now, and how much?
    GET /quiz/study-plan?minutes=30&subject=Maths
 ===================================================== */
@@ -466,10 +526,45 @@ exports.getQuizHistory = async (req, res) => {
 
 exports.getQuizById = async (req, res) => {
   try {
+    if (!mongoose.isValidObjectId(req.params.id)) return res.status(400).json({ success: false, message: "Invalid quiz id" });
     const quiz = await QuizAttempt.findOne({ _id: req.params.id, user: req.user.id });
+    if (!quiz) return res.status(404).json({ success: false, message: "Quiz not found" });
     res.json({ success: true, quiz });
   } catch {
     res.status(500).json({ success: false });
+  }
+};
+
+/* =====================================================
+   AI EXPLANATION for one answered question (used by the review page)
+   body: { quizId, questionId }
+   The browser sends ids only. The server reads the question, the student's answer and the key from the
+   saved attempt, so nobody can ask the AI about answers they never gave, or send the ML key from a browser.
+===================================================== */
+exports.explainAnswer = async (req, res) => {
+  try {
+    const { quizId, questionId } = req.body;
+    if (!mongoose.isValidObjectId(quizId) || !mongoose.isValidObjectId(questionId)) {
+      return res.status(400).json({ success: false, message: "quizId and questionId are required" });
+    }
+    const quiz = await QuizAttempt.findOne({ _id: quizId, user: req.user.id }).lean();
+    if (!quiz) return res.status(404).json({ success: false, message: "Quiz not found" });
+
+    const q = quiz.questions.find((x) => String(x.questionId) === questionId);
+    if (!q) return res.status(404).json({ success: false, message: "Question is not part of this quiz" });
+    const r = quiz.responses.find((x) => String(x.questionId) === questionId);
+
+    const out = await ml.explain({
+      question: q.questionText,
+      student_answer: r ? q.options[r.selectedAnswer] : "Not answered",
+      correct_answer: q.options[q.correctAnswer],
+      topic: q.topic || "General",
+    });
+    if (!out || !out.explanation) return res.status(503).json({ success: false, message: "The AI tutor is not available right now" });
+    res.json({ success: true, explanation: out.explanation });
+  } catch (error) {
+    console.error("Explain error:", error);
+    res.status(500).json({ success: false, message: "Could not get an explanation" });
   }
 };
 

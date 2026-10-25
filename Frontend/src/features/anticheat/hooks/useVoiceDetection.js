@@ -1,3 +1,4 @@
+import API_URL from "../../../config";
 import { useState, useEffect, useRef, useCallback } from 'react';
 
 const useVoiceDetection = (isActive = false) => {
@@ -39,7 +40,7 @@ const useVoiceDetection = (isActive = false) => {
     console.warn(`🚨 VOICE VIOLATION: Speaking detected immediately`);
     
     // Log to backend immediately
-    fetch('http://localhost:5000/api/anti-cheat/log-event', {
+    fetch(`${API_URL}/api/anti-cheat/log-event`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

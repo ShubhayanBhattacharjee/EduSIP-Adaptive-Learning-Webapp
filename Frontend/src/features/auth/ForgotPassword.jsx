@@ -1,3 +1,4 @@
+import API_URL from "../../config";
 import React, { useState } from "react";
 import Navbar from "../../shared/layout/Navbar";
 import Footer from "../../shared/layout/Footer";
@@ -9,7 +10,7 @@ const ForgotPassword = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    const res = await fetch("http://localhost:5000/auth/forgotpassword", {
+    const res = await fetch(`${API_URL}/auth/forgotpassword`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

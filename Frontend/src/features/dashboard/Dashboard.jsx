@@ -1,3 +1,4 @@
+import API_URL from "../../config";
 import React, { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
@@ -7,6 +8,7 @@ import StreakHeatmap from "./StreakHeatmap";
 import Footer from "../../shared/layout/Footer";
 import usericon from "../../assets/usericon.png";
 import JoinClass from "./JoinClass";
+import LearningPanel from "./LearningPanel";
 import "./Dashboard.css";
 
 const Dashboard = () => {
@@ -16,18 +18,18 @@ const Dashboard = () => {
   const [analytics, setAnalytics]     = useState(null);
   const [performance, setPerformance] = useState(null);
   const [loading, setLoading]         = useState(true);
+  const [loadError, setLoadError]     = useState("");
   const [quizHistory, setQuizHistory] = useState([]);
   const [isEditing, setIsEditing]     = useState(false);
   const [bio, setBio]                 = useState("");
   const [skills, setSkills]           = useState("");
 
-  const BASE_URL    = "http://localhost:5000";
+  const BASE_URL    = API_URL;
   const token       = localStorage.getItem("token");
   const userProfile = analytics?.user || {};
 
   const fetchData = useCallback(async () => {
     try {
-      setLoading(true);
       const [aRes, pRes] = await Promise.all([
         fetch(`${BASE_URL}/dashboard/analytics`,  { headers: { Authorization: `Bearer ${token}` } }),
         fetch(`${BASE_URL}/dashboard/performance`, { headers: { Authorization: `Bearer ${token}` } }),
@@ -39,7 +41,8 @@ const Dashboard = () => {
       if (hData.success) setQuizHistory(hData.history);
       setAnalytics(aData.success ? aData : null);
       setPerformance(pData.success ? pData : null);
-    } catch (e) { console.error(e); }
+      setLoadError(aData.success ? "" : (aData.message || "Could not load your dashboard"));
+    } catch (e) { console.error(e); setLoadError("Cannot reach the server. Check your connection."); }
     finally { setLoading(false); }
   }, [token]);
 
@@ -52,13 +55,17 @@ const Dashboard = () => {
   }, [analytics]);
 
   const handleSave = async () => {
-    const res = await updateProfile(bio, skills.split(",").map(s => s.trim()));
-    if (res.success) { alert("Profile updated ✅"); setIsEditing(false); window.location.reload(); }
+    const res = await updateProfile(bio, skills.split(",").map(s => s.trim()).filter(Boolean));
+    if (res.success) { setIsEditing(false); fetchData(); }
     else alert(res.error);
   };
 
   if (loading) return <div className="db-loading"><div className="db-spinner" /></div>;
-  if (!analytics) return <p className="db-empty">No analytics found.</p>;
+  if (!analytics) return (
+    <p className="db-empty">
+      {loadError || "No analytics found."} <button className="db-btn-ghost" onClick={() => { setLoading(true); fetchData(); }}>Try again</button>
+    </p>
+  );
 
   /* ── chart data ─────────────────────────────────── */
   const subjects   = analytics.subjects?.map(s => s.subject)       || [];
@@ -99,6 +106,10 @@ const Dashboard = () => {
               <span className="db-qs-num">{analytics.stats?.overallAccuracy || 0}%</span>
               <span className="db-qs-lbl">Accuracy</span>
             </div>
+            <div className="db-qs" title="Answers that were right without using a hint">
+              <span className="db-qs-num">{analytics.stats?.noHintRate || 0}%</span>
+              <span className="db-qs-lbl">No-hint</span>
+            </div>
             <div className="db-qs">
               <span className="db-qs-num">
                 {analytics.streak?.current || 0}
@@ -109,6 +120,8 @@ const Dashboard = () => {
             <button className="db-cta" onClick={() => navigate("/quiz")}>Start Quiz</button>
           </div>
         </section>
+
+        <LearningPanel learning={analytics.learning} />
 
         {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             BENTO GRID

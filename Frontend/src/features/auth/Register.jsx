@@ -1,3 +1,4 @@
+import API_URL from "../../config";
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
@@ -77,12 +78,19 @@ const Register = () => {
       formData.confirmPassword,
     );
 
-    if (result.success) navigate("/login");
+    if (result.success) {
+      if (result.verificationRequired) {
+        alert(result.emailSent
+          ? "Account created. Check your email and click the link to verify it, then log in."
+          : "Account created, but we could not send the verification email. Log in and use 'Resend verification email'.");
+      }
+      navigate("/login");
+    }
     else setError(result.error || "Registration failed");
   };
 
   const handleGoogleSignup = () => {
-    window.location.href = "http://localhost:5000/auth/google";
+    window.location.href = `${API_URL}/auth/google`;
   };
 
   return (

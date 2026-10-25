@@ -1,3 +1,4 @@
+import API_URL from "../config";
 import React, { createContext, useState, useContext, useEffect } from "react";
 
 const AuthContext = createContext();
@@ -15,7 +16,7 @@ export const AuthProvider = ({ children }) => {
   const [token, setToken] = useState(localStorage.getItem("token"));
   const [loading, setLoading] = useState(true);
 
-  const BASE_URL = "http://localhost:5000";
+  const BASE_URL = API_URL;
 
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
@@ -43,7 +44,7 @@ export const AuthProvider = ({ children }) => {
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data.message || "Login failed");
+        return { success: false, error: data.message || "Login failed", code: data.code };
       }
 
       localStorage.setItem("token", data.token);
@@ -54,7 +55,41 @@ export const AuthProvider = ({ children }) => {
 
       return { success: true };
     } catch (error) {
-      return { success: false, error: error.message };
+      return { success: false, error: "Cannot reach the server. Check your connection." };
+    }
+  };
+
+  // STAFF LOGIN (admins and super admins only; the backend refuses everyone else)
+  const staffLogin = async (email, password) => {
+    try {
+      const res = await fetch(`${BASE_URL}/auth/staff/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+      const data = await res.json();
+      if (!res.ok) return { success: false, error: data.message || "Login failed" };
+      localStorage.setItem("token", data.token);
+      localStorage.setItem("user", JSON.stringify(data.user));
+      setToken(data.token);
+      setUser(data.user);
+      return { success: true, user: data.user };
+    } catch (error) {
+      return { success: false, error: "Cannot reach the server. Check your connection." };
+    }
+  };
+
+  // RESEND the verification email
+  const resendVerification = async (email) => {
+    try {
+      await fetch(`${BASE_URL}/auth/resend-verification`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      return { success: true };
+    } catch {
+      return { success: false };
     }
   };
 
@@ -93,7 +128,7 @@ export const AuthProvider = ({ children }) => {
         throw new Error(data.message || "Registration failed");
       }
 
-      return { success: true };
+      return { success: true, verificationRequired: !!data.verificationRequired, emailSent: data.emailSent !== false };
     } catch (error) {
       return { success: false, error: error.message };
     }
@@ -133,7 +168,21 @@ export const AuthProvider = ({ children }) => {
   };
 
   // GOOGLE SUCCESS
-  const handleGoogleSuccess = async (token) => {
+  const handleGoogleSuccess = async (code) => {
+    // swap the one-time code from the URL for the real token (the token itself never appears in a URL)
+    let token;
+    try {
+      const ex = await fetch(`${BASE_URL}/auth/google/exchange`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code }),
+      });
+      const exData = await ex.json();
+      if (!ex.ok || !exData.token) return null;
+      token = exData.token;
+    } catch {
+      return null;
+    }
     localStorage.setItem("token", token);
     const res = await fetch(`${BASE_URL}/auth/me`, {
       headers: { Authorization: `Bearer ${token}` },
@@ -163,6 +212,8 @@ export const AuthProvider = ({ children }) => {
     token,
     loading,
     login,
+    staffLogin,
+    resendVerification,
     register,
     updateProfile, // 🔥 FIXED
     logout,

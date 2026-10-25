@@ -8,13 +8,14 @@ const GoogleSuccess = () => {
   const { handleGoogleSuccess } = useAuth();
 
   useEffect(() => {
-    const token = new URLSearchParams(window.location.search).get("token");
-    if (!token) return navigate("/login");
-    handleGoogleSuccess(token).then((u) => navigate(u ? homeFor(u.role) : "/login"));
+    const code = new URLSearchParams(window.location.search).get("code");
+    window.history.replaceState({}, "", "/google-success");      // remove the code from the address bar and history
+    if (!code) return navigate("/login", { replace: true });
+    handleGoogleSuccess(code).then((u) => navigate(u ? homeFor(u.role) : "/login", { replace: true }));
     // eslint-disable-next-line
   }, []);
 
-  return <div>Signing you in...</div>;
+  return <div style={{ padding: 40, textAlign: "center" }}>Signing you in...</div>;
 };
 
 export default GoogleSuccess;

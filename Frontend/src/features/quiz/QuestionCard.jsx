@@ -12,6 +12,10 @@ const QuestionCard = ({
   onHint,
   showHint,
   hint,
+  hints,
+  hintsLeft,
+  onMoreHint,
+  hideHint,
   onNext,
   isLastQuestion,
   hasSelectedOption,
@@ -60,26 +64,42 @@ const QuestionCard = ({
         ))}
       </div>
 
-      {showHint && (
+      {!hideHint && showHint && (
         <motion.div
           className="hint-content"
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
         >
-          <p>💡 {hint}</p>
+          {(hints && hints.length ? hints : hint ? [hint] : []).map((h, i) => (
+            <p key={i}>💡 {hints && hints.length > 1 ? `Hint ${i + 1}: ` : ""}{h}</p>
+          ))}
         </motion.div>
       )}
 
       <div className="action-buttons">
-        <motion.button
-          className={`hint-btn ${showHint ? "active" : ""}`}
-          onClick={onHint}
-          disabled={isTransitioning}
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-        >
-          💡 {showHint ? "Hide Hint" : "Show Hint"}
-        </motion.button>
+        {!hideHint && (
+          <motion.button
+            className={`hint-btn ${showHint ? "active" : ""}`}
+            onClick={onHint}
+            disabled={isTransitioning}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+          >
+            💡 {showHint ? "Hide Hint" : "Show Hint"}
+          </motion.button>
+        )}
+
+        {!hideHint && showHint && onMoreHint && hintsLeft > 0 && (
+          <motion.button
+            className="hint-btn"
+            onClick={onMoreHint}
+            disabled={isTransitioning}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+          >
+            ➕ More help ({hintsLeft} left)
+          </motion.button>
+        )}
 
         <motion.button
           className={`next-btn ${

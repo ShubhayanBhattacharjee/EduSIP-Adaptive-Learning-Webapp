@@ -45,6 +45,7 @@ exports.getAnalytics = async (req, res) => {
           _id: "$questionDetails.subject",
           totalQuestions: { $sum: 1 },
           correctAnswers: { $sum: { $cond: ["$isCorrect", 1, 0] } },
+          cleanCorrect: { $sum: { $cond: [{ $eq: ["$success", true] }, 1, 0] } },     // right AND no hint
           totalTime: { $sum: { $ifNull: ["$timeTaken", 0] } },
         },
       },
@@ -54,6 +55,7 @@ exports.getAnalytics = async (req, res) => {
       subject: s._id,
       totalQuestions: s.totalQuestions,
       correctAnswers: s.correctAnswers,
+      noHintRate: s.totalQuestions ? Number(((s.cleanCorrect / s.totalQuestions) * 100).toFixed(1)) : 0,
       accuracy: s.totalQuestions
         ? Number(((s.correctAnswers / s.totalQuestions) * 100).toFixed(1))
         : 0,
@@ -73,6 +75,7 @@ exports.getAnalytics = async (req, res) => {
       (sum, s) => sum + s.correctAnswers,
       0
     );
+    const totalClean = subjectData.reduce((sum, s) => sum + s.cleanCorrect, 0);
     const totalTime = subjectData.reduce(
       (sum, s) => sum + s.totalTime,
       0
@@ -81,6 +84,8 @@ exports.getAnalytics = async (req, res) => {
     const overallAccuracy = totalAttempts
       ? Number(((totalCorrect / totalAttempts) * 100).toFixed(1))
       : 0;
+
+    const noHintRate = totalAttempts ? Number(((totalClean / totalAttempts) * 100).toFixed(1)) : 0;
 
     const avgResponseTime = totalAttempts
       ? Number((totalTime / totalAttempts).toFixed(1))
@@ -105,8 +110,8 @@ exports.getAnalytics = async (req, res) => {
             : 1,
         isCorrect: r.isCorrect,
         label:
-          r.difficulty.charAt(0).toUpperCase() +
-          r.difficulty.slice(1),
+          String(r.difficulty || "medium").charAt(0).toUpperCase() +
+          String(r.difficulty || "medium").slice(1),
       }));
 
     /* =====================================================
@@ -202,6 +207,7 @@ exports.getAnalytics = async (req, res) => {
 
       stats: {
         overallAccuracy,
+        noHintRate,
         totalAttempts,
         totalCorrect,
         avgResponseTime,

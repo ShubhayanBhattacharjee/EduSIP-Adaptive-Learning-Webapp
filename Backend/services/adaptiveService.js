@@ -81,7 +81,7 @@ async function getSkill(userId, subject, topic) {
 // 1 = clean session. Each proctoring event lowers it. Shared by every answer in the session.
 async function integrityTrust(userId, sessionId) {
   const events = await AntiCheatEvent.find({ user: userId, sessionId }).select("eventType").lean();
-  const points = events.reduce((sum, e) => sum + (EVENT_WEIGHT[e.eventType] ?? 1), 0);
+  const points = events.reduce((sum, e) => sum + (EVENT_WEIGHT[String(e.eventType).toLowerCase()] ?? 1), 0);
   return Math.max(0, Number((1 - 0.15 * points).toFixed(2)));
 }
 
@@ -187,10 +187,10 @@ async function applyAnswer({ userId, question, exposure, success }) {
     await overall.save();
   }
 
-  await Question.updateOne({ _id: question._id }, {
-    $set: { elo: t.new_difficulty },
-    $inc: { attempts: 1, correctCount: success ? 1 : 0 },
-  });
+  // Counters always move. The difficulty only moves if nobody else changed it since we read it
+  // (two students answering the same question at once would otherwise overwrite each other).
+  await Question.updateOne({ _id: question._id }, { $inc: { attempts: 1, correctCount: success ? 1 : 0 } });
+  await Question.updateOne({ _id: question._id, elo: question.elo ?? null }, { $set: { elo: t.new_difficulty } });
 
   result.learned = true;
   result.abilityAfter = exposure.mode === "level" ? (o ? o.new_ability : overall.ability) : t.new_ability;

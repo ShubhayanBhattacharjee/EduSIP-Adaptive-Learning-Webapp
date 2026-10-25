@@ -1,3 +1,4 @@
+import API_URL from "../../config";
 import React, { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import Navbar from "../../shared/layout/Navbar";
@@ -16,7 +17,7 @@ const ResetPassword = () => {
     e.preventDefault();
 
     const res = await fetch(
-      `http://localhost:5000/auth/resetpassword/${token}`,
+      `${API_URL}/auth/resetpassword/${token}`,
       {
         method: "PUT",
         headers: {

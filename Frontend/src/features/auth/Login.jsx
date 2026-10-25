@@ -7,11 +7,13 @@ import { homeFor } from "../../utils/roles";
 import "./Login.css";
 
 const Login = () => {
-  const { login, googleLogin, user } = useAuth();
+  const { login, googleLogin, resendVerification, user } = useAuth();
   const navigate = useNavigate();
   const [formData, setFormData] = useState({ email: "", password: "" });
   const [showPass, setShowPass] = useState(false);
   const [error, setError] = useState("");
+  const [needsVerify, setNeedsVerify] = useState(false);
+  const [resent, setResent] = useState(false);
 
   useEffect(() => {
     if (user) navigate(homeFor(user.role));
@@ -24,8 +26,18 @@ const Login = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
+    setNeedsVerify(false);
+    setResent(false);
     const result = await login(formData.email, formData.password);
-    if (!result.success) setError(result.error);
+    if (!result.success) {
+      setError(result.error);
+      setNeedsVerify(result.code === "EMAIL_NOT_VERIFIED");
+    }
+  };
+
+  const handleResend = async () => {
+    await resendVerification(formData.email);
+    setResent(true);
   };
 
   return (
@@ -43,6 +55,13 @@ const Login = () => {
               </p>
 
               {error && <div className="error-message">{error}</div>}
+              {needsVerify && (
+                <p className="auth-footer-text">
+                  {resent
+                    ? "If that account still needs verification, a new link is on its way."
+                    : <button type="button" className="forgot-link" onClick={handleResend} style={{ background: "none", border: "none", cursor: "pointer" }}>Resend verification email</button>}
+                </p>
+              )}
 
               <div className="field-group">
                 <input

@@ -1,4 +1,5 @@
-const BASE_URL = "http://localhost:5000/admin"; // ✅ Correct backend route for admin
+import API_URL from "../config";
+const BASE_URL = `${API_URL}/admin`;
 const getToken = () => localStorage.getItem("token"); // JWT
 
 export const addQuestionAPI = async (payload) => {

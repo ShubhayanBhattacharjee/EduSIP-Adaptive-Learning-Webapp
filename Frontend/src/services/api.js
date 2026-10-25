@@ -1,6 +1,7 @@
+import API_URL from "../config";
 // From config.js
 const CONFIG = {
-  BASE_URL: "http://localhost:5000"
+  BASE_URL: API_URL
 };
 
 // From api.js - postRequest function

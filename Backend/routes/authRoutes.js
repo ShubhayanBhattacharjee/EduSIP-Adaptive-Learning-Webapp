@@ -13,6 +13,7 @@ const {
   updateProfile,
   verifyEmail,
   resendVerification,
+  googleExchange,
   me
 } = require("../controllers/authController");
 const { protect } = require("../middleware/authMiddleware");
@@ -38,6 +39,7 @@ router.get(
 router.get("/google/failure", (req, res) => {
   res.status(401).json({ success: false, message: "Google authentication failed" });
 });
+router.post("/google/exchange", googleExchange);
 router.post("/verify-email", verifyEmail);
 router.post("/resend-verification", resendVerification);
 router.get("/me", protect, me);

@@ -1,0 +1,26 @@
+.lp-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; margin: 20px 0; }
+.lp-card { background: var(--card-bg, rgba(255,255,255,.04)); border: 1px solid var(--border-color, rgba(128,128,128,.25)); border-radius: 18px; padding: 20px; }
+.lp-prompt { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin: 20px 0; background: rgba(99,102,241,.1); border-color: rgba(99,102,241,.4); }
+.lp-prompt h3 { margin: 0 0 4px; }
+.lp-prompt p { margin: 0; color: var(--subtext-color, #888); }
+.lp-eyebrow { text-transform: uppercase; letter-spacing: .08em; font-size: 12px; color: var(--subtext-color, #888); margin: 0 0 8px; }
+.lp-big { font-size: 56px; font-weight: 800; line-height: 1; color: var(--accent, #6366f1); }
+.lp-big span { font-size: 20px; color: var(--subtext-color, #888); margin-left: 4px; }
+.lp-band { display: inline-block; margin: 8px 0 12px; padding: 3px 12px; border-radius: 999px; font-size: 12px; font-weight: 600; background: rgba(99,102,241,.15); color: var(--accent, #6366f1); }
+.lp-band--beginner { background: rgba(239,68,68,.15); color: #ef4444; }
+.lp-band--developing { background: rgba(245,158,11,.15); color: #d97706; }
+.lp-band--proficient { background: rgba(16,185,129,.15); color: #059669; }
+.lp-row { display: grid; grid-template-columns: 110px 1fr 24px; align-items: center; gap: 8px; margin: 7px 0; font-size: 13px; }
+.lp-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lp-lv { text-align: right; color: var(--subtext-color, #888); }
+.lp-bar { height: 7px; border-radius: 6px; background: rgba(128,128,128,.2); overflow: hidden; }
+.lp-bar div { height: 100%; background: var(--accent, #6366f1); border-radius: 6px; }
+.lp-muted { color: var(--subtext-color, #888); font-size: 13px; margin: 4px 0; }
+.lp-meta { font-size: 13px; margin: 10px 0; }
+.lp-btn { background: var(--accent, #6366f1); color: #fff; border: none; padding: 10px 18px; border-radius: 12px; cursor: pointer; font-weight: 600; }
+.lp-ghost { background: transparent; border: 1px solid rgba(128,128,128,.4); color: inherit; padding: 6px 14px; border-radius: 10px; cursor: pointer; }
+.lp-link { background: none; border: none; color: var(--accent, #6366f1); cursor: pointer; padding: 6px 0 0; }
+.lp-plan-head { display: flex; justify-content: space-between; align-items: center; }
+.lp-plan-head select { background: transparent; color: inherit; border: 1px solid rgba(128,128,128,.4); border-radius: 8px; padding: 4px 8px; }
+.lp-item { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 10px 0; border-top: 1px solid rgba(128,128,128,.2); }
+.lp-tag { font-size: 11px; padding: 2px 8px; border-radius: 999px; background: rgba(99,102,241,.15); margin-left: 6px; }

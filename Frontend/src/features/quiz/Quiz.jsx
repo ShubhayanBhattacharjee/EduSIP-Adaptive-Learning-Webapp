@@ -17,6 +17,7 @@ import useObjectDetection from "../anticheat/hooks/useObjectDetection";
 import useVoiceDetection from "../anticheat/hooks/useVoiceDetection";
 import useProctoring from "../anticheat/hooks/useProctoring";
 import { AnimatePresence } from "framer-motion";
+import quizApi from "../../services/quizApi";
 import "./Quiz.css";
 
 /* ── Subject icon colour palettes ── */
@@ -54,14 +55,14 @@ const Quiz = () => {
 
   // Webcam toggle state (default: disabled, will be set based on verification)
   const [webcamEnabled, setWebcamEnabled] = useState(false);
-  const [setVerificationCompleted] = useState(false);
-  const [setVerificationSkipped] = useState(false);
+  const [, setVerificationCompleted] = useState(false);
+  const [, setVerificationSkipped] = useState(false);
   
   // Voice detection is always enabled when quiz starts
   
   // Speaking warning state
   const [speakingWarning, setSpeakingWarning] = useState(null);
-  const [setClearSpeakingWarning] = useState(false);
+  const [, setClearSpeakingWarning] = useState(false);
 
   const [subjects, setSubjects] = useState([]);
   const [topics, setTopics] = useState([]);
@@ -70,7 +71,20 @@ const Quiz = () => {
   const [questions, setQuestions] = useState([]);
   const [sessionId, setSessionId] = useState(null);   // the server owns the quiz session
   const [total, setTotal] = useState(10);             // questions in this quiz (the server decides)
-  const [hintText, setHintText] = useState("");       // hint text now comes from the server
+  const [hints, setHints] = useState([]);              // hint texts for the current question (up to 3, from the server)
+  const [hintsLeft, setHintsLeft] = useState(3);
+  const [mode, setMode] = useState("practice");        // practice (one topic) | level (whole subject)
+  const [count, setCount] = useState(10);              // questions wanted
+  const [minutes, setMinutes] = useState(0);           // 0 = no time limit
+  const [target, setTarget] = useState(null);          // wanted chance of success, set by the study plan
+  const [secondsLeft, setSecondsLeft] = useState(null);
+  const [feedback, setFeedback] = useState(null);      // difficulty message after each answer
+  const [yourLevel, setYourLevel] = useState(null);
+  const [resumeInfo, setResumeInfo] = useState(null);  // an unfinished quiz the student can continue
+  const [verifyFor, setVerifyFor] = useState("start"); // what the identity check unlocks: start | resume
+  const [startError, setStartError] = useState("");
+  const pendingTopic = React.useRef("");
+  const finishing = React.useRef(false);
   const [remedial, setRemedial] = useState(null);     // "go back to <topic> first" advice
   const [loadingQuestions, setLoadingQuestions] = useState(false);
   const [quizStarted, setQuizStarted] = useState(false);
@@ -89,7 +103,7 @@ const Quiz = () => {
   });
   const [quizReview, setQuizReview] = useState(null);
   const [showIdentityVerification, setShowIdentityVerification] = useState(false);
-  const [setVerificationData] = useState(null);
+  const [, setVerificationData] = useState(null);
 
   // Initialize proctoring - active only when quiz is started and not completed
   const { 
@@ -144,8 +158,6 @@ const Quiz = () => {
     setSpeakingWarning(null);
   };
 
-  const BASE_URL = "http://localhost:5000";
-
   // Stop proctoring when navigating away from quiz page
   useEffect(() => {
     if (!location.pathname.includes('/quiz') && quizStarted) {
@@ -158,110 +170,130 @@ const Quiz = () => {
     if (!user) navigate("/login");
   }, [user, navigate]);
 
-  /* ── fetch subjects ── */
+  /* ── fetch subjects, and look for an unfinished quiz ── */
   useEffect(() => {
-    const fetchSubjects = async () => {
-      try {
-        const res = await fetch(`${BASE_URL}/quiz/subjects`, {
-          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
-        });
-        const data = await res.json();
-        if (data.success) setSubjects(data.subjects);
-      } catch (err) {
-        console.error(err);
-      }
-    };
-    fetchSubjects();
+    quizApi.subjects().then((d) => setSubjects(d.subjects || [])).catch(console.error);
+    quizApi.active().then((d) => setResumeInfo(d.active || null)).catch(() => {});
   }, []);
+
+  /* ── arrived from "Start here" or the study plan ── */
+  useEffect(() => {
+    const st = location.state;
+    if (st && st.subject) {
+      pendingTopic.current = st.topic || "";
+      if (st.questions) setCount(Math.min(Math.max(parseInt(st.questions, 10) || 10, 3), 40));
+      if (st.minutes) setMinutes(Math.min(Math.max(parseInt(st.minutes, 10) || 0, 0), 240));
+      if (st.target) setTarget(Number(st.target));
+      setSelectedSubject(st.subject);
+    }
+  }, [location.state]);
 
   /* ── fetch topics on subject select ── */
   useEffect(() => {
     if (!selectedSubject) return;
-    const fetchTopics = async () => {
-      try {
-        const res = await fetch(
-          `${BASE_URL}/quiz/topics?subject=${selectedSubject}`,
-          {
-            headers: {
-              Authorization: `Bearer ${localStorage.getItem("token")}`,
-            },
-          },
-        );
-        const data = await res.json();
-        if (data.success) {
-          setTopics(data.topics);
-          setSelectedTopic("");
-        }
-      } catch (err) {
-        console.error(err);
-      }
-    };
-    fetchTopics();
+    quizApi.topics(selectedSubject)
+      .then((d) => {
+        const list = d.topics || [];
+        setTopics(list);
+        const wanted = pendingTopic.current.toLowerCase();
+        const match = wanted ? list.find((t) => t.toLowerCase() === wanted) : null;
+        pendingTopic.current = "";
+        setSelectedTopic(match || "");
+      })
+      .catch(console.error);
   }, [selectedSubject]);
 
   /* ── start quiz ── */
-  const startQuiz = async () => {
+  const startQuiz = () => {
     if (!selectedSubject) return alert("Please select a subject");
-    if (!selectedTopic) return alert("Please select a topic");
-    // Show identity verification modal instead of starting quiz directly
+    if (mode === "practice" && !selectedTopic) return alert("Please select a topic");
+    setStartError("");
+    setVerifyFor("start");
     setShowIdentityVerification(true);
   };
 
-  /* ── start quiz after verification ── */
-  const startQuizAfterVerification = async () => {
+  const resetQuestionState = () => {
+    setHints([]);
+    setHintsLeft(3);
+    setShowHint(false);
+    setSelectedOption(null);
+    setFeedback(null);
+    setRemedial(null);
+    finishing.current = false;
+  };
+
+  /* ── start the quiz after the identity check ── */
+  const launchQuiz = async () => {
     setLoadingQuestions(true);
     try {
-      const res = await fetch(`${BASE_URL}/quiz/start`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-          "Content-Type": "application/json",
-        },
-                body: JSON.stringify({
-          subject: selectedSubject,
-          topic: selectedTopic,
-        }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        setSessionId(data.sessionId);
-        setTotal(data.total || 10);
-        setRemedial(null);
-        setQuestions(data.questions);
-        setQuizStarted(true);
-        if (data.questions.length > 0)
-          setDifficulty(data.questions[0].difficulty.toUpperCase());
-      }
+      const body = { subject: selectedSubject, mode, questions: count };
+      if (mode === "practice") body.topic = selectedTopic;
+      if (minutes > 0) body.minutes = minutes;
+      if (mode === "practice" && target) body.target = target;
+      const data = await quizApi.start(body);
+      resetQuestionState();
+      setSessionId(data.sessionId);
+      setTotal(data.total || count);
+      setSecondsLeft(data.minutes ? data.minutes * 60 : null);
+      setYourLevel(null);
+      setCurrentQuestion(1);
+      setQuestions(data.questions);
+      setQuizStarted(true);
     } catch (err) {
-      console.error(err);
+      if (err.code === "PLACEMENT_REQUIRED") {
+        alert(err.message);
+        navigate("/placement");
+      } else {
+        setStartError(err.message || "Could not start the quiz");
+      }
     } finally {
       setLoadingQuestions(false);
     }
   };
 
-  const currentQ = questions[currentQuestion - 1] || {};
+  /* ── continue an unfinished quiz ── */
+  const askResume = () => {
+    setVerifyFor("resume");
+    setShowIdentityVerification(true);
+  };
+
+  const resumeQuiz = () => {
+    const a = resumeInfo;
+    if (!a) return;
+    resetQuestionState();
+    setMode(a.mode);
+    setSelectedSubject(a.subject);
+    setSelectedTopic(a.topic || "");
+    setSessionId(a.sessionId);
+    setTotal(a.total);
+    setSecondsLeft(null);
+    setHintsLeft(Math.max(0, 3 - (a.hintsUsed || 0)));
+    setCurrentQuestion(a.answered + 1);
+    setQuestions([a.question]);
+    setQuizStarted(true);
+    setResumeInfo(null);
+  };
+
+  // the question on screen is always the newest one the server sent
+  const currentQ = questions[questions.length - 1] || {};
 
   /* ── handle verification complete ── */
   const handleVerificationComplete = (data) => {
     setVerificationData(data);
     setShowIdentityVerification(false);
-    
-    // Set webcam state based on verification
+
     if (data && (data.userPhoto || data.idPhoto)) {
-      // User completed camera verification - enable webcam
       setWebcamEnabled(true);
       setVerificationCompleted(true);
       setVerificationSkipped(false);
-      console.log('📷 Camera verification completed - webcam enabled');
     } else {
-      // User skipped verification - disable webcam
       setWebcamEnabled(false);
       setVerificationCompleted(false);
       setVerificationSkipped(true);
-      console.log('⏭️ Verification skipped - webcam disabled');
     }
-    
-    startQuizAfterVerification();
+
+    if (verifyFor === "resume") resumeQuiz();
+    else launchQuiz();
   };
 
   /* ── handle verification cancel ── */
@@ -279,11 +311,12 @@ const Quiz = () => {
 
   useEffect(() => {
     if (questions.length > 0) {
-      const q = questions[currentQuestion - 1];
+      const q = questions[questions.length - 1];
       if (q?.difficulty) setDifficulty(q.difficulty.toUpperCase());
     }
-  }, [currentQuestion, questions]);
+  }, [questions]);
 
+  // seconds spent on this question
   useEffect(() => {
     if (!quizStarted || quizCompleted || isTransitioning) return;
     setTimer(0);
@@ -291,111 +324,109 @@ const Quiz = () => {
     return () => clearInterval(interval);
   }, [currentQuestion, quizStarted, quizCompleted, isTransitioning]);
 
+  // whole-quiz countdown (only when the student chose a time limit)
+  const hasLimit = secondsLeft !== null;
+  useEffect(() => {
+    if (!quizStarted || quizCompleted || !hasLimit) return;
+    const interval = setInterval(() => setSecondsLeft((p) => (p === null ? p : Math.max(p - 1, 0))), 1000);
+    return () => clearInterval(interval);
+  }, [quizStarted, quizCompleted, hasLimit]);
+
   useEffect(() => {
     setSelectedOption(null);
     setShowHint(false);
-    setHintText("");
+    setHints([]);
   }, [currentQuestion]);
 
-  /* ── answer / finish ── */
-    /* ── hint: the server counts it and sends the text ── */
-  const handleHint = async () => {
-    if (hintText) {                         // already fetched: just show or hide it
-      setShowHint((s) => !s);
-      return;
-    }
+  /* ── finish: ask the server for the result of this session ── */
+  const finishNow = async () => {
+    if (finishing.current) return;
+    finishing.current = true;
     try {
-      const res = await fetch(`${BASE_URL}/quiz/hint`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ questionId: currentQ._id, sessionId }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        setHintText(data.hint);
-        setShowHint(true);
-      }
+      const result = await quizApi.finish({ sessionId, subject: selectedSubject, topic: selectedTopic });
+      setQuizStats(result);
+      setQuizReview({ questions: result.questions, responses: result.responses });
+      setQuizCompleted(true);
+      markProctoringCompleted();
     } catch (err) {
-      console.error(err);
+      finishing.current = false;
+      if (err.status === 400) {                  // nothing was answered before the time ran out
+        alert("Time is up and no answers were saved.");
+        setQuizStarted(false);
+        setQuestions([]);
+        setSecondsLeft(null);
+      } else {
+        alert(err.message || "Could not finish the quiz. Try again.");
+      }
+    } finally {
+      setIsTransitioning(false);
     }
   };
 
-  /* ── answer / finish ── */
+  useEffect(() => {
+    if (quizStarted && !quizCompleted && secondsLeft === 0) finishNow();
+    // eslint-disable-next-line
+  }, [secondsLeft]);
+
+  /* ── hint: the server counts it and sends the text (3 levels) ── */
+  const fetchHint = async () => {
+    try {
+      const data = await quizApi.hint({ questionId: currentQ._id, sessionId });
+      setHints((prev) => [...prev, data.hint]);
+      setHintsLeft(data.hintsLeft);
+      setShowHint(true);
+    } catch (err) {
+      alert(err.message || "No more hints for this question");
+    }
+  };
+
+  const handleHint = () => {
+    if (hints.length > 0) {
+      setShowHint((s) => !s);               // already fetched: just show or hide
+      return;
+    }
+    if (hintsLeft > 0) fetchHint();
+    else alert("You have used all hints for this question.");
+  };
+
+  /* ── answer ── */
   const handleNextQuestion = async () => {
     if (selectedOption === null || isTransitioning) return;
     setIsTransitioning(true);
-    const cq = questions[currentQuestion - 1];
 
     let data;
     try {
-      const res = await fetch(`${BASE_URL}/quiz/answer`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          questionId: cq._id,
-          selectedAnswer: selectedOption,
-          sessionId,
-          hintUsed: !!hintText,
-        }),
+      data = await quizApi.answer({
+        questionId: currentQ._id,
+        selectedAnswer: selectedOption,
+        sessionId,
+        hintUsed: hints.length > 0,
       });
-      data = await res.json();
     } catch (err) {
-      console.error(err);
-    }
-
-    if (!data || !data.success) {
-      alert((data && data.message) || "Could not save your answer. Please try again.");
+      alert(err.message || "Could not save your answer. Please try again.");
       setIsTransitioning(false);
       return;
     }
+
     setRemedial(data.remedial || null);
+    setFeedback(data.feedback || null);
+    if (data.feedback && data.feedback.yourLevel != null) setYourLevel(data.feedback.yourLevel);
 
     // The server picked the next question from this answer: add it and move on.
     if (!data.done && data.nextQuestion) {
       setQuestions((prev) => [...prev, data.nextQuestion]);
+      setHintsLeft(3);
       setTimeout(() => {
-        setCurrentQuestion((p) => p + 1);
+        setCurrentQuestion(data.answeredCount + 1);
         setIsTransitioning(false);
       }, 300);
       return;
     }
 
-    // The server says the quiz is over: finish it.
-    try {
-      const res = await fetch(`${BASE_URL}/quiz/finish`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          sessionId,
-          subject: selectedSubject,
-          topic: selectedTopic,
-        }),
-      });
-      const result = await res.json();
-      if (result.success) {
-        setQuizStats(result);
-        setQuizReview({
-          questions: result.questions,
-          responses: result.responses,
-        });
-        setQuizCompleted(true);
-        markProctoringCompleted(); // Mark proctoring as completed
-      }
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setIsTransitioning(false);
-    }
+    await finishNow();
   };
+
+  const fmt = (sec) => `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, "0")}`;
 
   /* ================================================================
      UI — SUBJECT / TOPIC SELECTION
@@ -420,6 +451,36 @@ const Quiz = () => {
                   Pick a subject, then choose a topic to begin.
                 </p>
               </div>
+              {resumeInfo && (
+                <div className="qz-resume">
+                  <span>You have an unfinished {resumeInfo.mode === "level" ? "level test" : "quiz"} in <b>{resumeInfo.topic || resumeInfo.subject}</b> ({resumeInfo.answered} of {resumeInfo.total} answered).</span>
+                  <button className="start-quiz-btn" onClick={askResume}>Continue →</button>
+                </div>
+              )}
+
+              {/* ── What kind of quiz ── */}
+              <div className="qz-options">
+                <div className="qz-seg">
+                  <button className={mode === "practice" ? "on" : ""} onClick={() => setMode("practice")}>Practice a topic</button>
+                  <button className={mode === "level" ? "on" : ""} onClick={() => setMode("level")}>Level test (whole subject)</button>
+                </div>
+                <label className="qz-field">Questions
+                  <select value={count} onChange={(e) => setCount(Number(e.target.value))}>
+                    {[5, 10, 15, 20, 30].map((n) => <option key={n} value={n}>{n}</option>)}
+                  </select>
+                </label>
+                <label className="qz-field">Time limit
+                  <select value={minutes} onChange={(e) => setMinutes(Number(e.target.value))}>
+                    <option value={0}>None</option>
+                    {[10, 15, 20, 30, 45, 60].map((n) => <option key={n} value={n}>{n} min</option>)}
+                  </select>
+                </label>
+                {mode === "practice" && target && (
+                  <span className="qz-chip">{target >= 0.75 ? "Gentle check" : target <= 0.6 ? "Stretch session" : "Normal difficulty"} <button onClick={() => setTarget(null)} title="Use normal difficulty">✕</button></span>
+                )}
+              </div>
+              {startError && <p className="qz-error">{startError}</p>}
+
               {/* ── Subject icon cards ── */}
               <div>
                 <p
@@ -452,7 +513,7 @@ const Quiz = () => {
               </div>
 
               {/* ── Topics grid ── */}
-              {selectedSubject && topics.length > 0 && (
+              {mode === "practice" && selectedSubject && topics.length > 0 && (
                 <div className="topics-section">
                   <p className="topics-section-heading">{selectedSubject}</p>
                   <div className="topics-grid">
@@ -482,7 +543,7 @@ const Quiz = () => {
               )}
 
               {/* ── Start button ── */}
-              {selectedTopic && (
+              {((mode === "practice" && selectedTopic) || (mode === "level" && selectedSubject)) && (
                 <button
                   className="start-quiz-btn"
                   onClick={startQuiz}
@@ -490,7 +551,7 @@ const Quiz = () => {
                 >
                   {loadingQuestions
                     ? "Loading…"
-                    : `Start ${selectedTopic} Quiz →`}
+                    : mode === "level" ? `Start ${selectedSubject} level test →` : `Start ${selectedTopic} Quiz →`}
                 </button>
               )}
             </div>
@@ -534,6 +595,12 @@ const Quiz = () => {
                   accuracy: 0,
                 });
                 setQuizReview(null);
+                setSessionId(null);
+                setSecondsLeft(null);
+                setFeedback(null);
+                setYourLevel(null);
+                setStartError("");
+                quizApi.active().then((d) => setResumeInfo(d.active || null)).catch(() => {});
               }}
               review={quizReview}
             />
@@ -631,7 +698,10 @@ const Quiz = () => {
             <span className={`difficulty ${difficulty.toLowerCase()}`}>
               {difficulty}
             </span>
+            {currentQ.level != null && <span className="qz-level">Question level {currentQ.level}/10</span>}
+            {yourLevel != null && <span className="qz-level">You: {yourLevel}/10</span>}
             <div className="timer-circle">{timer}s</div>
+            {hasLimit && <span className={`qz-level ${secondsLeft <= 60 ? "qz-low" : ""}`}>⏱ {fmt(secondsLeft)} left</span>}
             {totalViolationCount > 0 && (
               <span className="violation-count">
                 Warnings: {totalViolationCount}/3
@@ -667,6 +737,11 @@ const Quiz = () => {
                 💡 {remedial.reason} Try <b>{remedial.backTo}</b> first.
               </div>
             )}
+            {feedback && feedback.message && (
+              <div className={`qz-feedback qz-feedback--${feedback.direction || "same"}`}>
+                {feedback.direction === "harder" ? "⬆️" : feedback.direction === "easier" ? "⬇️" : "➡️"} {feedback.message}
+              </div>
+            )}
             <ProgressBar
               progress={(currentQuestion / total) * 100}
             />
@@ -676,9 +751,11 @@ const Quiz = () => {
                 totalQuestions={total}
                 questionText={currentQ.questionText}
                 options={currentQ.options}
-                hint={hintText}
+                hints={hints}
+                hintsLeft={hintsLeft}
                 showHint={showHint}
                 onHint={handleHint}
+                onMoreHint={fetchHint}
                 selectedOption={selectedOption}
                 onOptionSelect={setSelectedOption}
                 onNext={handleNextQuestion}

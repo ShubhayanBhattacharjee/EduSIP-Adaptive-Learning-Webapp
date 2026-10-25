@@ -814,3 +814,20 @@ body.dark-mode .start-quiz-btn:hover {
     animation: none;
   }
 }
+
+/* ── step 2: quiz options, resume, feedback ── */
+.qz-resume { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding: 14px 18px; border-radius: 14px; background: rgba(99,102,241,.12); border: 1px solid rgba(99,102,241,.35); }
+.qz-options { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 14px; }
+.qz-seg { display: inline-flex; border: 1px solid rgba(128,128,128,.35); border-radius: 12px; overflow: hidden; }
+.qz-seg button { background: transparent; border: none; color: inherit; padding: 10px 16px; cursor: pointer; }
+.qz-seg button.on { background: var(--accent, #6366f1); color: #fff; }
+.qz-field { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--subtext-color, #888); }
+.qz-field select { padding: 8px 10px; border-radius: 10px; border: 1px solid rgba(128,128,128,.35); background: transparent; color: inherit; }
+.qz-chip { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 999px; background: rgba(245,158,11,.15); font-size: 13px; }
+.qz-chip button { background: none; border: none; cursor: pointer; color: inherit; }
+.qz-error { color: #ef4444; margin: 0; }
+.qz-level { font-size: 13px; padding: 4px 10px; border-radius: 999px; background: rgba(99,102,241,.12); }
+.qz-low { background: rgba(239,68,68,.18); color: #ef4444; }
+.qz-feedback { margin: 0 0 12px; padding: 10px 14px; border-radius: 10px; background: rgba(99,102,241,.12); }
+.qz-feedback--harder { background: rgba(16,185,129,.15); }
+.qz-feedback--easier { background: rgba(245,158,11,.15); }

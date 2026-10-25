@@ -1,3 +1,4 @@
+import API_URL from "../../../config";
 import { useState, useEffect, useCallback, useRef } from 'react';
 
 const useProctoring = (isActive = false) => {
@@ -26,7 +27,7 @@ const useProctoring = (isActive = false) => {
 
   const logEvent = useCallback(async (eventType, details) => {
     try {
-      await fetch('http://localhost:5000/api/anti-cheat/log-event', {
+      await fetch(`${API_URL}/api/anti-cheat/log-event`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

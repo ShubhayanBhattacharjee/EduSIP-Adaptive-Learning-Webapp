@@ -67,7 +67,7 @@ const Navbar = () => {
           </NavLink>
         )}
 
-        {user?.role === "admin" && (
+        {["admin", "superadmin"].includes(user?.role) && (
           <NavLink to="/admin/analytics" className="nav-item">
             Admin
           </NavLink>
@@ -142,7 +142,7 @@ const Navbar = () => {
             </NavLink>
           )}
 
-          {user?.role === "admin" && (
+          {["admin", "superadmin"].includes(user?.role) && (
             <NavLink to="/admin/analytics" onClick={() => setMenuOpen(false)}>
               ADMIN
             </NavLink>

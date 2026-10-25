@@ -2,7 +2,6 @@ const User = require("../models/User");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
-const nodemailer = require("nodemailer");
 const { uniqueUsername } = require("../utils/username");
 
 const mailer = require("../utils/mailer");
@@ -63,18 +62,18 @@ exports.registerUser = async (req, res) => {
     const fullnameStr = (fullname || "").toString().trim();
     const emailStr = (email || "").toString().trim().toLowerCase();
     const usernameStr = (username || "").toString().trim();
-    const pwd = (password || "").toString();
-    const confirmPwd = (confirmPassword || "").toString();
+    const pwd = String(password || "");                 // never trimmed: what the user types is what is hashed
+    const confirmPwd = String(confirmPassword || "");
 
     if (!fullnameStr || !emailStr || !pwd || !confirmPwd) {
       return res.status(400).json({ success: false, message: "All fields are required" });
     }
 
-    if (pwd.trim().length < 8) {
-      return res.status(400).json({ success: false, message: "Password must be at least 8 characters" });
+    if (pwd.length < 8 || pwd.length > 72) {      // bcrypt ignores everything after 72 bytes
+      return res.status(400).json({ success: false, message: "Password must be 8 to 72 characters" });
     }
 
-    if (pwd.trim() !== confirmPwd.trim()) {
+    if (pwd !== confirmPwd) {
       return res.status(400).json({ success: false, message: "Passwords do not match" });
     }
 
@@ -82,7 +81,10 @@ exports.registerUser = async (req, res) => {
       return res.status(400).json({ success: false, message: "Username is required" });
     }
 
-    const existingUsername = await User.findOne({ username: usernameStr });
+    if (!/^[a-zA-Z0-9_.-]{3,30}$/.test(usernameStr)) {
+      return res.status(400).json({ success: false, message: "Username must be 3-30 letters, numbers, dot, dash or underscore" });
+    }
+    const existingUsername = await User.findOne({ username: usernameStr }).collation({ locale: "en", strength: 2 });
     if (existingUsername) {
       return res.status(400).json({ success: false, message: "Username already taken" });
     }
@@ -93,7 +95,7 @@ exports.registerUser = async (req, res) => {
     }
 
     const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(pwd.trim(), salt);
+    const hashedPassword = await bcrypt.hash(pwd, salt);
 
     const user = new User({
       fullname: fullnameStr,
@@ -145,7 +147,10 @@ exports.loginUser = async (req, res) => {
     }
 
     //compare password
-    const isMatch = await bcrypt.compare(password, user.password);
+    let isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch && password !== password.trim()) {
+      isMatch = await bcrypt.compare(password.trim(), user.password);   // accounts created when sign-up trimmed the password
+    }
     if (!isMatch) {
       return res.status(400).json({ success: false, message: "Invalid credentials" });
     }
@@ -260,21 +265,8 @@ exports.forgotPassword = async (req, res) => {
     // Create reset URL
     const resetUrl = `${process.env.CLIENT_URL}/reset-password/${resetToken}`;
 
-    // Nodemailer transporter
-    const transporter = nodemailer.createTransport({
-      service: "gmail",
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS
-      },
-      connectionTimeout: 10000,
-      greetingTimeout: 10000,
-      socketTimeout: 10000
-    });
-
-    // Send email
-    await transporter.sendMail({
-      from: process.env.EMAIL_USER,
+    // Send email (one shared mailer, see utils/mailer.js)
+    await mailer.sendMail({
       to: user.email,
       subject: "Password Reset Request",
       html: `
@@ -307,10 +299,10 @@ exports.resetPassword = async (req, res) => {
   try {
     const { password } = req.body;
 
-    if (!password || String(password).length < 8) {
+    if (!password || String(password).length < 8 || String(password).length > 72) {
       return res.status(400).json({
         success: false,
-        message: "Password must be at least 8 characters"
+        message: "Password must be 8 to 72 characters"
       });
     }
 
@@ -375,11 +367,33 @@ exports.googleAuthSuccess = async (req, res) => {
 
     const token = generateToken(req.user._id);
 
-    return res.redirect(`${process.env.CLIENT_URL}/google-success?token=${token}`);
+    // The JWT never travels in a URL (browser history, referrer headers, server logs).
+    // The browser gets a one-time code that is worth nothing after 60 seconds or after one use.
+    const code = crypto.randomBytes(24).toString("hex");
+    googleCodes.set(sha256(code), { token, expires: Date.now() + 60 * 1000 });
+    return res.redirect(`${process.env.CLIENT_URL}/google-success?code=${code}`);
   } catch (error) {
     console.error("Google Auth Error:", error);
     return res.status(500).json({ success: false, message: "Server Error" });
   }
+};
+
+// ---- one-time codes for the Google redirect (in memory: fine for one server; use Redis if you run several) ----
+const googleCodes = new Map();
+setInterval(() => {
+  const now = Date.now();
+  for (const [k, v] of googleCodes) if (v.expires < now) googleCodes.delete(k);
+}, 60 * 1000).unref();
+
+/* POST /auth/google/exchange   body: { code }   ->  { success, token } */
+exports.googleExchange = (req, res) => {
+  const key = sha256(String(req.body.code || ""));
+  const entry = googleCodes.get(key);
+  googleCodes.delete(key);                                   // single use
+  if (!entry || entry.expires < Date.now()) {
+    return res.status(400).json({ success: false, message: "Sign-in link expired, please try again" });
+  }
+  res.json({ success: true, token: entry.token });
 };
 
 exports.updateProfile = async (req, res) => {

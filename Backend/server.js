@@ -29,6 +29,14 @@ const app = express();
 
 // MIDDLEWARE
 if (!process.env.CLIENT_URL) throw new Error("CLIENT_URL is required");
+if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32) throw new Error("JWT_SECRET is required and must be at least 32 characters");
+// Settings that are fine on a laptop and dangerous on a real server.
+if (process.env.NODE_ENV === "production") {
+  if (process.env.SKIP_EMAIL_VERIFICATION === "true") throw new Error("SKIP_EMAIL_VERIFICATION must not be true in production");
+  if (process.env.LEGACY_STAFF_LOGIN === "true") throw new Error("LEGACY_STAFF_LOGIN must not be true in production");
+  if (!process.env.ML_API_KEY) throw new Error("ML_API_KEY is required in production");
+}
+if (process.env.FORCE_ADAPTIVE === "true") console.warn("FORCE_ADAPTIVE=true: everyone gets the adaptive version, so there is NO control group for the pilot report.");
 app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));  // keeps /uploads images loading cross-origin
 app.use(cors({
   origin: process.env.CLIENT_URL,
@@ -51,6 +59,8 @@ app.use(express.urlencoded({ extended: true, limit: "1mb" }));
 app.use("/auth/login", loginLimiter);
 app.use("/auth/staff/login", staffLoginLimiter);
 app.use("/auth", rateLimit({ windowMs: 15 * 60 * 1000, limit: 100 }));
+// AI explanations cost money and are slow: 15 per minute per login
+app.use("/quiz/explain", rateLimit({ windowMs: 60 * 1000, limit: 15, keyGenerator: (req) => req.headers.authorization || ipKeyGenerator(req.ip) }));
 app.use("/quiz", perMinute(600));
 app.use("/classes", perMinute(120));
 app.use("/admin", perMinute(120));

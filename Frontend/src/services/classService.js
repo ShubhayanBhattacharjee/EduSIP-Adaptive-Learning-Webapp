@@ -1,4 +1,5 @@
-const BASE = "http://localhost:5000/classes";
+import API_URL from "../config";
+const BASE = `${API_URL}/classes`;
 
 async function call(path = "", method = "GET", body) {
   const res = await fetch(BASE + path, {

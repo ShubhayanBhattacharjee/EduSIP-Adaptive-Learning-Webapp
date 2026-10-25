@@ -1,3 +1,4 @@
+import API_URL from "../../config";
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import Navbar from "../../shared/layout/Navbar";
@@ -16,7 +17,7 @@ const QuizReview = () => {
   useEffect(() => {
     const fetchQuiz = async () => {
       try {
-        const res = await fetch(`http://localhost:5000/quiz/${id}`, {
+        const res = await fetch(`${API_URL}/quiz/${id}`, {
           headers: {
             Authorization: `Bearer ${localStorage.getItem("token")}`,
           },
@@ -31,29 +32,23 @@ const QuizReview = () => {
   }, [id]);
 
   /* ================= AI EXPLANATION ================= */
-  const fetchExplanation = async (q, response) => {
+  const fetchExplanation = async (q) => {
     try {
       setLoadingExplain((prev) => ({ ...prev, [q.questionId]: true }));
 
-      const payload = {
-        question: q.questionText || "N/A",
-        student_answer: response
-          ? q.options[response.selectedAnswer]
-          : "Not Answered",
-        correct_answer: q.options[q.correctAnswer] || "N/A",
-        topic: q.topic || "General",
-      };
-
-      const res = await fetch("http://localhost:8000/ai-explain", {
+      const res = await fetch(`${API_URL}/quiz/explain`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+        body: JSON.stringify({ quizId: id, questionId: q.questionId }),
       });
 
       const data = await res.json();
 
-      if (!res.ok) {
-        alert(data.detail || "Failed to get explanation");
+      if (!res.ok || !data.success) {
+        alert(data.message || "Failed to get explanation");
         return;
       }
 

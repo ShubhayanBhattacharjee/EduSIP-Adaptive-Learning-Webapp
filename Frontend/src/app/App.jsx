@@ -18,11 +18,14 @@ import Dashboard from "../features/dashboard/Dashboard";
 import Quiz from "../features/quiz/Quiz";
 import ProtectedRoute from "./ProtectedRoute";
 import ForgotPassword from "../features/auth/ForgotPassword";
+import VerifyEmail from "../features/auth/VerifyEmail";
+import StaffLogin from "../features/auth/StaffLogin";
 import ResetPassword from "../features/auth/ResetPassword";
 import AdminDashboard from "../features/admin/AdminDashboard";
 import AddQuestion from "../features/admin/AddQuestion";
 import AdminAnalytics from "../features/admin/AdminAnalytics";
 import QuizReview from "../features/quiz/QuizReview";
+import Placement from "../features/placement/Placement";
 import TeacherDashboard from "../features/teacher/TeacherDashboard";
 import ClassView from "../features/teacher/ClassView";
 import StudentDetail from "../features/teacher/StudentDetail";
@@ -63,6 +66,8 @@ function App() {
               <Route path="/register" element={<Register />} />
               <Route path="/google-success" element={<GoogleSuccess />} />
               <Route path="/forgot-password" element={<ForgotPassword />} />
+              <Route path="/verify-email/:code" element={<VerifyEmail />} />
+              <Route path="/staff/login" element={<StaffLogin />} />
               <Route path="/reset-password/:token" element={<ResetPassword />} />
 
               {/* Student */}
@@ -85,6 +90,15 @@ function App() {
               />
 
               <Route
+                path="/placement"
+                element={
+                  <ProtectedRoute role="student">
+                    <Placement />
+                  </ProtectedRoute>
+                }
+              />
+
+              <Route
                 path="/quiz-review/:id"
                 element={
                   <ProtectedRoute role="student">
@@ -101,7 +115,7 @@ function App() {
               <Route
                 path="/admin/*"
                 element={
-                  <ProtectedRoute role="admin">
+                  <ProtectedRoute role={["admin", "superadmin"]}>
                     <AdminDashboard />
                   </ProtectedRoute>
                 }

@@ -42,7 +42,7 @@ exports.generateRecommendations = async ({
   // =====================================================
   // ✅ Topic Performance
   // =====================================================
-  const topicPerformance = Object.keys(topicStats.map ? {} : topicStats).map(
+  const topicPerformance = Object.keys(topicStats).map(
     (topic) => {
       const { total, correct } = topicStats[topic];
       return {

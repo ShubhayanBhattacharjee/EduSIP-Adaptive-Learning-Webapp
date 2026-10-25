@@ -47,8 +47,5 @@ export const getAnalyticsAPI = async () => {
   }
 };
 
-export default {
-  addQuestionAPI,
-  uploadCSVAPI,
-  getAnalyticsAPI,
-};
+const adminService = { addQuestionAPI, uploadCSVAPI, getAnalyticsAPI };
+export default adminService;

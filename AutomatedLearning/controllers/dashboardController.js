@@ -4,70 +4,7 @@ const User = require("../models/User");
 const Question = require("../models/Question");
 const QuizAttempt = require("../models/QuizAttempt");
 const { getYouTubeVideos } = require("../services/mlService");
-
-// --- Update activityDates when saving a response ---
-exports.saveResponse = async (req, res) => {
-  try {
-
-    const userId = req.user.id;
-    const { question, selectedAnswer, timeTaken } = req.body;
-
-    const questionObj = await Question.findById(question);
-
-    if (!questionObj) {
-      return res.status(404).json({
-        success: false,
-        message: "Question not found"
-      });
-    }
-
-    const isCorrect = selectedAnswer === questionObj.correctAnswer;
-
-    await Response.create({
-      user: userId,
-      question,
-      selectedAnswer,
-      isCorrect,
-      timeTaken,
-      difficulty: questionObj.difficulty
-    });
-
-    const user = await User.findById(userId);
-
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    let activity = user.activityDates.find(
-      a => new Date(a.date).getTime() === today.getTime()
-    );
-
-    if (activity) {
-      activity.count += 1;
-    } else {
-      user.activityDates.push({
-        date: today,
-        count: 1
-      });
-    }
-
-    await user.save();
-
-    res.json({
-      success: true,
-      message: "Response saved"
-    });
-
-  } catch (error) {
-
-    console.error("Save response error:", error);
-
-    res.status(500).json({
-      success: false,
-      message: error.message
-    });
-
-  }
-};
+const placement = require("../services/placementService");
 
 
 
@@ -239,6 +176,17 @@ exports.getAnalytics = async (req, res) => {
     };
 
     /* =====================================================
+       LEVEL + "START HERE" (from the placement test, kept current by every answer)
+       placementDone=false  -> the frontend should send the student to the placement test
+    ===================================================== */
+    let learning = { placementDone: false, level: null, startHere: null, placement: null };
+    try {
+      learning = await placement.summary(userId);
+    } catch (e) {
+      console.error("Dashboard level summary failed:", e.message);
+    }
+
+    /* =====================================================
        ✅ FINAL RESPONSE
     ===================================================== */
     res.status(200).json({
@@ -273,13 +221,17 @@ exports.getAnalytics = async (req, res) => {
       activity,
 
       recommendations, // ✅ CLEAN + CONSISTENT
+
+      // { placementDone, canRetake, placement, level: { ability, level 1-10, band, subjects[] },
+      //   startHere: { subject, topic, questions, minutes, mode, targetSuccess, reason, headline } }
+      learning,
     });
   } catch (error) {
     console.error("Analytics error:", error);
 
     res.status(500).json({
       success: false,
-      error: error.message,
+      message: "Server error",
     });
   }
 };

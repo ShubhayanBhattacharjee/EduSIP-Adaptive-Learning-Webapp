@@ -1,0 +1,77 @@
+{
+  "audit": {
+    "rows": 825363,
+    "students": 3739,
+    "exercises": 1326,
+    "problems": 24414,
+    "date_from": "2018-08-01 11:45:00+00:00",
+    "date_to": "2019-07-31 23:30:00+00:00",
+    "missing_values_total": 0,
+    "duplicate_rows": 0,
+    "overall_correct_rate": 0.7011,
+    "attempts_per_student_median": 56.0,
+    "attempts_per_student_mean": 220.7,
+    "attempts_per_student_max": 7391,
+    "students_with_20plus_attempts": 2671,
+    "students_with_under_10_attempts": 595,
+    "time_taken_zero_seconds": 1839,
+    "time_taken_at_cap_1800s": 1130,
+    "attempt_count_zero_rows": 1756,
+    "attempt_count_over_20_rows": 2267,
+    "label_rule_violations": 0,
+    "share_same_timestamp_as_previous": 0.882
+  },
+  "top10pct_students_share_of_rows": 0.58,
+  "label_check": [
+    {
+      "group": "2+ tries, no hint",
+      "correct_rate": 0.0,
+      "n": 53558
+    },
+    {
+      "group": "2+ tries, hint",
+      "correct_rate": 0.0,
+      "n": 156362
+    },
+    {
+      "group": "first try, no hint",
+      "correct_rate": 0.9951,
+      "n": 581554
+    },
+    {
+      "group": "first try, hint",
+      "correct_rate": 0.0,
+      "n": 33889
+    }
+  ],
+  "exercise_correct_rate_spread": {
+    "n_exercises": 1161,
+    "min": 0.261,
+    "p10": 0.46,
+    "median": 0.676,
+    "p90": 0.842,
+    "max": 0.966
+  },
+  "student_correct_rate_spread": {
+    "n_students": 2671,
+    "p10": 0.5,
+    "median": 0.752,
+    "p90": 0.907
+  },
+  "correct_rate_by_time_taken": {
+    "(-0.001, 5.0]": 0.811,
+    "(5.0, 10.0]": 0.806,
+    "(10.0, 20.0]": 0.758,
+    "(20.0, 40.0]": 0.691,
+    "(40.0, 80.0]": 0.606,
+    "(80.0, 160.0]": 0.517,
+    "(160.0, 1801.0]": 0.487
+  },
+  "correct_rate_by_attempt_number": {
+    "0-9": 0.735,
+    "10-49": 0.725,
+    "50-199": 0.709,
+    "200-999": 0.698,
+    "1000+": 0.674
+  }
+}

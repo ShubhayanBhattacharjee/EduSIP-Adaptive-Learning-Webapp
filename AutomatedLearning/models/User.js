@@ -23,9 +23,33 @@ const userSchema = new mongoose.Schema({
     email: { type: String, required: true, unique: true, trim: true, lowercase: true, },
     bio:{type:String, default:""},
     skills:{type:[String],default:[]},
-    role: { type: String, enum: ["student", "admin"], default: "student" },
+    role: { type: String, enum: ["student", "teacher", "admin", "superadmin"], default: "student" },
+    emailVerified: { type: Boolean, default: false },
+    emailVerifyToken: String,      // sha256 of the code in the emailed link
+    emailVerifyExpire: Date,
+    emailVerifySentAt: Date,       // when a verification email was last SENT (for the 1-minute resend limit)
+    disabled: { type: Boolean, default: false },   // a disabled account cannot log in or use any route
     password: { type: String, required: function () { return !this.googleId; }, minlength: 8 },  // Only required for manual signup
     googleId: { type: String, unique: true, sparse: true },
+    // pilot study group; leave empty and the backend assigns it from the user id
+    group: { type: String, enum: ["adaptive", "control"] },
+    consentAt: { type: Date },
+    // result of the common 10-question placement test (see services/placementService.js)
+    placement: {
+        done: { type: Boolean, default: false },
+        completedAt: Date,
+        sessionId: String,
+        ability: Number,
+        se: Number,                       // how unsure the estimate is (smaller = surer)
+        level: Number,                    // 1 to 10
+        band: String,                     // Beginner | Developing | Proficient | Advanced
+        confidence: String,               // low | medium | high
+        correct: Number,
+        total: Number,
+        testVersion: Number,
+        subjects: [{ subject: String, ability: Number, level: Number, band: String, answered: Number }],
+    },
+    tokensValidAfter: { type: Date },   // logins issued before this moment are no longer accepted
     //enum is used so that only two values are used ...suppose someone tries to access the db and changes the role to hacker the db will reject it ..basic form of protection ...backend security
     resetPasswordToken: String,
     resetPasswordExpire: Date,

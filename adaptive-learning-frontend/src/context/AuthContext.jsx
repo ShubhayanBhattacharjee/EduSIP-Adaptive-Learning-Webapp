@@ -133,21 +133,20 @@ export const AuthProvider = ({ children }) => {
   };
 
   // GOOGLE SUCCESS
-  const handleGoogleSuccess = (token) => {
-    if (token) {
-      localStorage.setItem("token", token);
-
-      const payload = JSON.parse(atob(token.split(".")[1]));
-
-      const userData = {
-        id: payload.id,
-      };
-
-      localStorage.setItem("user", JSON.stringify(userData));
-
-      setToken(token);
-      setUser(userData);
+  const handleGoogleSuccess = async (token) => {
+    localStorage.setItem("token", token);
+    const res = await fetch(`${BASE_URL}/auth/me`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      localStorage.removeItem("token");
+      return null;
     }
+    localStorage.setItem("user", JSON.stringify(data.user));
+    setToken(token);
+    setUser(data.user);
+    return data.user;
   };
 
   // LOGOUT

@@ -1,38 +1,44 @@
-import requests
 import os
+import requests
 from dotenv import load_dotenv
 
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-env_path = os.path.join(BASE_DIR, ".env")
-load_dotenv(env_path)
+load_dotenv()  # reads GROQ_API_KEY from the .env file in your ML folder
 
 API_KEY = os.getenv("GROQ_API_KEY")
+# Model name is configurable, so you can change it in .env without touching code.
+MODEL = os.getenv("GROQ_MODEL", "openai/gpt-oss-20b")
+BASE = "https://api.groq.com/openai/v1"
 
-def ask_llm(prompt):
-    try:
-        print("API KEY VALUE:", API_KEY)
-        res = requests.post(
-            "https://api.groq.com/openai/v1/chat/completions",
-            headers={
-                "Authorization": f"Bearer {API_KEY}",
-                "Content-Type": "application/json"
-            },
-            json={
-                "model": "llama-3.1-8b-instant",
-                "messages":[
-                    {"role":"system","content":"You are a helpful tutor."},
-                    {"role":"user","content":prompt}
-                ],
-                "temperature": 0.7
-            }
-        )
 
-        if res.status_code != 200:
-            return f"Groq Error: {res.text}"
+def ask_llm(prompt, system="You are a helpful tutor."):
+    if not API_KEY:
+        raise RuntimeError("GROQ_API_KEY is missing. Put it in the .env file.")
+    res = requests.post(
+        f"{BASE}/chat/completions",
+        headers={"Authorization": f"Bearer {API_KEY}"},
+        json={
+            "model": MODEL,
+            "temperature": 0.5,
+            "messages": [
+                {"role": "system", "content": system},
+                {"role": "user", "content": prompt},
+            ],
+        },
+        timeout=30,
+    )
+    if res.status_code != 200:
+        # Raise an error instead of returning the error text as if it were an answer.
+        raise RuntimeError(f"Groq error {res.status_code}: {res.text}")
+    return res.json()["choices"][0]["message"]["content"]
 
-        data = res.json()
 
-        return data.get("choices",[{}])[0].get("message",{}).get("content","No response")
+def list_models():
+    """Returns the model names your key can use. Handy when a model gets retired."""
+    res = requests.get(f"{BASE}/models", headers={"Authorization": f"Bearer {API_KEY}"}, timeout=30)
+    res.raise_for_status()
+    return sorted(m["id"] for m in res.json()["data"])
 
-    except Exception as e:
-        return f"Exception: {str(e)}"
+
+if __name__ == "__main__":
+    print("Using model:", MODEL)
+    print(ask_llm("Explain in one sentence what binary search does."))

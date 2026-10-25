@@ -1,0 +1,26 @@
+[
+  {
+    "model":"B3 baseline",
+    "AUC":0.7225580457,
+    "log_loss":0.5560677332,
+    "by_history_gb":null
+  },
+  {
+    "model":"M1 Elo",
+    "AUC":0.7348597566,
+    "log_loss":0.5393190002,
+    "by_history_gb":null
+  },
+  {
+    "model":"M2 Logistic regression",
+    "AUC":0.7688116609,
+    "log_loss":0.5146903383,
+    "by_history_gb":null
+  },
+  {
+    "model":"M3 Gradient boosting",
+    "AUC":0.7734037286,
+    "log_loss":0.5103082643,
+    "by_history_gb":null
+  }
+]

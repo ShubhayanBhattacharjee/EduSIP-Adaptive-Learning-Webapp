@@ -18,7 +18,9 @@ const quizAttemptSchema = new mongoose.Schema({
             },
             questionText: String,
             options: [String],
-            correctAnswer: Number
+            correctAnswer: Number,
+            difficulty: String,
+            topic: String
         }
     ],
     responses: [
@@ -31,6 +33,8 @@ const quizAttemptSchema = new mongoose.Schema({
             difficulty: String      // (optional but good)
         }
     ],
+    sessionId: String,
+    mode: { type: String, default: "practice" },
     totalQuestions: Number,
     correctAnswers: Number,
     accuracy: Number,
@@ -41,6 +45,10 @@ const quizAttemptSchema = new mongoose.Schema({
     },
     recommendation: {
         message: String,
+        knowledgeLevel: String,
+        knowledgeScore: Number,
+        weakTopics: [String],
+        strongTopics: [String],
         videos: [
             {
                 title: String,
@@ -52,4 +60,4 @@ const quizAttemptSchema = new mongoose.Schema({
     }
 }, { timestamps: true });
 
-module.exports = mongoose.model("QuizAttempt", quizAttemptSchema);
+module.exports = mongoose.model("QuizAttempt", quizAttemptSchema);  

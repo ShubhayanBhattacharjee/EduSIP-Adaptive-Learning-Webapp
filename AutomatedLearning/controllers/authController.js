@@ -3,21 +3,63 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
 const nodemailer = require("nodemailer");
+const { uniqueUsername } = require("../utils/username");
+
+const mailer = require("../utils/mailer");
+const AuditLog = require("../models/AuditLog");
+
+const STAFF_ROLES = ["admin", "superadmin"];
+// TEMPORARY: lets admins keep using the old /auth/login form until the staff login page exists in the frontend.
+const legacyStaffLogin = () => process.env.LEGACY_STAFF_LOGIN === "true";
+
+// ---- email verification helpers ----
+const VERIFY_HOURS = 24;
+const sha256 = (v) => crypto.createHash("sha256").update(v).digest("hex");
+const skipVerification = () => process.env.SKIP_EMAIL_VERIFICATION === "true";   // local testing only
+
+async function sendVerificationEmail(email, code) {
+  const link = `${process.env.CLIENT_URL}/verify-email/${code}`;
+  await mailer.sendMail({
+    to: email,
+    subject: "Verify your email",
+    html: `<h2>Welcome!</h2><p>Click the link below to verify your email address:</p>
+           <a href="${link}">${link}</a><p>This link expires in ${VERIFY_HOURS} hours.</p>`,
+  });
+}
+
+// Saves a fresh code on the user and emails it. Returns false if the email could not be sent
+// (the account is kept; the user can ask for a new link).
+async function issueVerification(user) {
+  const code = crypto.randomBytes(24).toString("hex");
+  user.emailVerifyToken = sha256(code);
+  user.emailVerifyExpire = new Date(Date.now() + VERIFY_HOURS * 3600 * 1000);
+  await user.save();
+  try {
+    await sendVerificationEmail(user.email, code);
+    user.emailVerifySentAt = new Date();
+    await user.save();
+    return true;
+  } catch (mailError) {
+    console.error("Verification email failed:", mailError.message);
+    return false;
+  }
+}
 //jwt(json web token) is a secure way to send information between client and server in the form of a digitally signed token 
 
 
-const generateToken = (userId) => {
+// scope "public" = student/teacher login, scope "staff" = admin/superadmin login. The scope is signed into the token.
+const generateToken = (userId, scope = "public") => {
+  const staff = scope === "staff";
   return jwt.sign(
-    { id: userId },                 // payload
-    process.env.JWT_SECRET,         // secret key
-    { expiresIn: "7d" }             // token expiry
+    { id: userId, scope },                                    // payload
+    process.env.JWT_SECRET,                                   // secret key
+    { expiresIn: staff ? (process.env.STAFF_JWT_EXPIRE || "8h") : (process.env.JWT_EXPIRE || "7d") }
   );
 };
 
 exports.registerUser = async (req, res) => {
   try {
-    const { fullname, username, email, bio, skills, role, password, confirmPassword } = req.body;
-
+    const { fullname, username, email, bio, skills, password, confirmPassword } = req.body;
     const fullnameStr = (fullname || "").toString().trim();
     const emailStr = (email || "").toString().trim().toLowerCase();
     const usernameStr = (username || "").toString().trim();
@@ -26,6 +68,10 @@ exports.registerUser = async (req, res) => {
 
     if (!fullnameStr || !emailStr || !pwd || !confirmPwd) {
       return res.status(400).json({ success: false, message: "All fields are required" });
+    }
+
+    if (pwd.trim().length < 8) {
+      return res.status(400).json({ success: false, message: "Password must be at least 8 characters" });
     }
 
     if (pwd.trim() !== confirmPwd.trim()) {
@@ -49,20 +95,29 @@ exports.registerUser = async (req, res) => {
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(pwd.trim(), salt);
 
-    const user = await User.create({
+    const user = new User({
       fullname: fullnameStr,
       username: usernameStr,
       email: emailStr,
-      bio: bio || "",
-      skills: skills || [],
-      role: role || "student",
-      password: hashedPassword
+      bio: String(bio || "").slice(0, 500),
+      skills: Array.isArray(skills) ? skills.slice(0, 20).map((s) => String(s).trim().slice(0, 40)).filter(Boolean) : [],
+      role: req.body.role === "teacher" ? "teacher" : "student",   // only these two can be chosen at sign-up
+      password: hashedPassword,
+      emailVerified: skipVerification(),
     });
+    let emailSent = true;
+    if (skipVerification()) {
+      await user.save();
+    } else {
+      emailSent = await issueVerification(user);   // saves the user, then emails the link
+    }
 
     // ✅ FIXED RESPONSE
     return res.status(201).json({
       success: true,
-      message: "User registered successfully",
+      verificationRequired: !user.emailVerified,
+      emailSent,
+      message: user.emailVerified? "User registered successfully": "Registration successful. Check your email to verify your account.",
       user: {
         id: user._id,
         fullname: user.fullname,
@@ -80,11 +135,12 @@ exports.registerUser = async (req, res) => {
 
 exports.loginUser = async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const email = String(req.body.email || "").trim().toLowerCase();
+    const password = String(req.body.password || "");
 
-    // Check if user exists
+    // Check if user exists (Google-only accounts have no password)
     const user = await User.findOne({ email });
-    if (!user) {
+    if (!user || !user.password) {
       return res.status(400).json({ success: false, message: "Invalid credentials" });
     }
 
@@ -94,10 +150,20 @@ exports.loginUser = async (req, res) => {
       return res.status(400).json({ success: false, message: "Invalid credentials" });
     }
 
-    // Generate token
-    // console.log("JWT_SECRET:", process.env.JWT_SECRET);
+    if (user.disabled) {
+      return res.status(403).json({ success: false, message: "This account is disabled" });
+    }
 
-    const token = generateToken(user._id);
+    // Admins and super admins never sign in here. Same answer as a wrong password, so nobody can find out who is staff.
+    const isStaff = STAFF_ROLES.includes(user.role);
+    if (isStaff && !legacyStaffLogin()) {
+      return res.status(400).json({ success: false, message: "Invalid credentials" });
+    }
+
+    if (!user.emailVerified) {
+      return res.status(403).json({ success: false, code: "EMAIL_NOT_VERIFIED", message: "Please verify your email before logging in" });
+    }
+    const token = generateToken(user._id, isStaff ? "staff" : "public");
 
     // Send response
     res.status(200).json({
@@ -121,6 +187,40 @@ exports.loginUser = async (req, res) => {
   }
 };
 
+/* POST /auth/staff/login   body: { email, password }
+   Only for admins and super admins. Students and teachers get the same "Invalid credentials" as a wrong password.
+   The token is short-lived (STAFF_JWT_EXPIRE, default 8h) and carries scope "staff". */
+exports.staffLogin = async (req, res) => {
+  try {
+    const email = String(req.body.email || "").trim().toLowerCase();
+    const password = String(req.body.password || "");
+    const bad = () => res.status(400).json({ success: false, message: "Invalid credentials" });
+
+    const user = await User.findOne({ email });
+    if (!user || !user.password || !STAFF_ROLES.includes(user.role)) return bad();
+    if (!(await bcrypt.compare(password, user.password))) return bad();
+    if (user.disabled) return res.status(403).json({ success: false, message: "This account is disabled" });
+
+    const token = generateToken(user._id, "staff");
+    try {
+      await AuditLog.create({ actor: user._id, actorEmail: user.email, action: "staff_login", target: user._id, targetEmail: user.email, details: { ip: req.ip } });
+    } catch (e) {
+      console.error("Audit log write failed:", e.message);        // never block the login itself
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Login successful",
+      token,
+      redirect: "/admin",
+      user: { id: user._id, fullname: user.fullname, username: user.username, email: user.email, role: user.role },
+    });
+  } catch (error) {
+    console.error("STAFF LOGIN ERROR:", error);
+    res.status(500).json({ success: false, message: "Server Error" });
+  }
+};
+
 
 exports.forgotPassword = async (req, res) => {
   try {
@@ -133,13 +233,14 @@ exports.forgotPassword = async (req, res) => {
       });
     }
 
-    const normalizedEmail = email.toLowerCase();
+    const normalizedEmail = String(email).trim().toLowerCase();
     const user = await User.findOne({ email: normalizedEmail });
 
     if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: "No user found with that email"
+      // Same answer whether the address exists or not, so nobody can test who has an account.
+      return res.status(200).json({
+        success: true,
+        message: "If that email is registered, a reset link has been sent"
       });
     }
 
@@ -189,7 +290,7 @@ exports.forgotPassword = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      message: "Password reset email sent"
+      message: "If that email is registered, a reset link has been sent"
     });
 
   } catch (error) {
@@ -206,10 +307,10 @@ exports.resetPassword = async (req, res) => {
   try {
     const { password } = req.body;
 
-    if (!password) {
+    if (!password || String(password).length < 8) {
       return res.status(400).json({
         success: false,
-        message: "Password is required"
+        message: "Password must be at least 8 characters"
       });
     }
 
@@ -231,7 +332,8 @@ exports.resetPassword = async (req, res) => {
     }
 
     const salt = await bcrypt.genSalt(10);
-    user.password = await bcrypt.hash(password, salt);
+    user.password = await bcrypt.hash(String(password), salt);
+    user.tokensValidAfter = new Date();   // old logins stop working after a reset
 
     user.resetPasswordToken = undefined;
     user.resetPasswordExpire = undefined;
@@ -263,7 +365,7 @@ exports.googleAuthSuccess = async (req, res) => {
 
     // If missing fields → update defaults
     if (!req.user.username) {
-      req.user.username = req.user.email.split("@")[0];
+      req.user.username = await uniqueUsername(req.user.email);
     }
 
     if (!req.user.bio) req.user.bio = "";
@@ -295,9 +397,13 @@ exports.updateProfile = async (req, res) => {
     }
 
     // Update fields
-    if (bio !== undefined) user.bio = bio;
-    if (skills !== undefined) user.skills = skills;
-
+    if (bio !== undefined) user.bio = String(bio).slice(0, 500);
+    if (skills !== undefined) {
+      if (!Array.isArray(skills)) {
+        return res.status(400).json({ success: false, message: "skills must be a list" });
+      }
+      user.skills = skills.slice(0, 20).map((s) => String(s).trim().slice(0, 40)).filter(Boolean);
+    }
     await user.save();
 
     return res.status(200).json({
@@ -320,4 +426,49 @@ exports.updateProfile = async (req, res) => {
       message: "Server Error",
     });
   }
+};
+
+
+/* POST /auth/verify-email   body: { token }   (the code from the emailed link) */
+exports.verifyEmail = async (req, res) => {
+  try {
+    const code = String(req.body.token || "");
+    if (!code) return res.status(400).json({ success: false, message: "Verification code is required" });
+
+    const user = await User.findOne({ emailVerifyToken: sha256(code), emailVerifyExpire: { $gt: Date.now() } });
+    if (!user) return res.status(400).json({ success: false, message: "Invalid or expired link" });
+
+    user.emailVerified = true;
+    user.emailVerifyToken = undefined;
+    user.emailVerifyExpire = undefined;
+    await user.save();
+    res.json({ success: true, message: "Email verified. You can log in now." });
+  } catch (error) {
+    console.error("Verify email error:", error);
+    res.status(500).json({ success: false, message: "Server Error" });
+  }
+};
+
+/* POST /auth/resend-verification   body: { email }   (same answer whether or not the account exists) */
+exports.resendVerification = async (req, res) => {
+  const generic = { success: true, message: "If that account still needs verification, a new link has been sent" };
+  try {
+    const email = String(req.body.email || "").trim().toLowerCase();
+    const user = email ? await User.findOne({ email }) : null;
+    if (!user || user.emailVerified) return res.json(generic);
+
+    // at most one email per minute per account
+    if (user.emailVerifySentAt && Date.now() - user.emailVerifySentAt.getTime() < 60 * 1000) return res.json(generic);
+
+    await issueVerification(user);
+    res.json(generic);
+  } catch (error) {
+    console.error("Resend verification error:", error);
+    res.json(generic);
+  }
+};
+
+exports.me = (req, res) => {
+  const { id, fullname, username, email, bio, skills, role } = req.user;
+  res.json({ success: true, user: { id, fullname, username, email, bio, skills, role } });
 };

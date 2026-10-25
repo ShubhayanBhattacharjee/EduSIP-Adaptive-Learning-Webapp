@@ -1,0 +1,6 @@
+venv/
+data/
+models/*
+!models/elo_params.json
+.env
+__pycache__/

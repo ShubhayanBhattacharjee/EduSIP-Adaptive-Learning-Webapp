@@ -1,0 +1,27 @@
+[
+  {
+    "model":"B0 always the overall rate",
+    "AUC":0.5,
+    "log_loss":0.6154249381
+  },
+  {
+    "model":"B1 exercise easiness",
+    "AUC":0.6897670727,
+    "log_loss":0.5667373553
+  },
+  {
+    "model":"B2 student's own past accuracy",
+    "AUC":0.6674899544,
+    "log_loss":0.5780248934
+  },
+  {
+    "model":"B3 average of B1 and B2",
+    "AUC":0.7225580457,
+    "log_loss":0.5560677332
+  },
+  {
+    "model":"LEAKY: used this attempt's hint\/attempt count",
+    "AUC":0.9953308238,
+    "log_loss":null
+  }
+]

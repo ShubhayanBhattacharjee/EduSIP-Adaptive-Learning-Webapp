@@ -1,0 +1,8 @@
+.jc-card { background: var(--card-bg); border: 1px solid var(--glass-border); border-radius: 16px; padding: 20px; margin: 20px 0; color: var(--text-color); }
+.jc-card h3 { margin: 0 0 4px; }
+.jc-sub { color: var(--subtext-color); font-size: 0.85rem; margin: 4px 0 12px; }
+.jc-form { display: flex; gap: 8px; margin-bottom: 8px; }
+.jc-form input { flex: 1; padding: 10px 14px; border-radius: 10px; border: 1px solid var(--glass-border); background: var(--bg-color); color: var(--text-color); font-family: monospace; letter-spacing: 2px; }
+.jc-card button { padding: 10px 16px; border: none; border-radius: 10px; background: var(--accent); color: #fff; font-weight: 600; cursor: pointer; }
+.jc-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-top: 1px solid var(--glass-border); }
+.jc-row button { background: transparent; color: #ef4444; border: 1px solid #ef4444; padding: 5px 10px; }

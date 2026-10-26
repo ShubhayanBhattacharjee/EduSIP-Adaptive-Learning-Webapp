@@ -20,6 +20,8 @@ const dashboardRoutes = require("./routes/dashboardRoutes");
 const adminRoutes = require("./routes/adminRoutes"); //  Added admin routes
 const antiCheatRoutes = require("./routes/antiCheatRoutes"); // Added anti-cheat routes
 const classRoutes = require("./routes/classRoutes");
+const superAdminRoutes = require("./routes/superAdminRoutes");   // super admin only
+const settings = require("./services/settingsService");
 
 // PASSPORT CONFIG
 require("./config/passport");
@@ -64,6 +66,7 @@ app.use("/quiz/explain", rateLimit({ windowMs: 60 * 1000, limit: 15, keyGenerato
 app.use("/quiz", perMinute(600));
 app.use("/classes", perMinute(120));
 app.use("/admin", perMinute(120));
+app.use("/superadmin", perMinute(120));
 app.use("/dashboard", perMinute(120));
 // proctoring events: counted per login (not per IP), so a classroom behind one IP is not blocked together
 app.use("/api/anti-cheat", rateLimit({ windowMs: 60 * 1000, limit: 300, keyGenerator: (req) => req.headers.authorization || ipKeyGenerator(req.ip) }));
@@ -82,6 +85,7 @@ app.use("/dashboard", dashboardRoutes);
 app.use("/admin", adminRoutes); // ✅ Mounted admin routes
 app.use("/api/anti-cheat", antiCheatRoutes); // ✅ Mounted anti-cheat routes
 app.use("/classes", classRoutes);
+app.use("/superadmin", superAdminRoutes);
 
 // 404 HANDLER
 app.use((req, res) => {
@@ -106,8 +110,10 @@ app.use((err, req, res, next) => {
 const PORT = process.env.PORT || 5000;
 
 connectDB()
-  .then(() => {
+  .then(async () => {
     console.log("MongoDB Connected");
+    await settings.load().catch((e) => console.error("Settings load failed (using .env values):", e.message));
+    settings.startRefresh();
 
     app.listen(PORT, () => {
       console.log(`Server running on port ${PORT}`);

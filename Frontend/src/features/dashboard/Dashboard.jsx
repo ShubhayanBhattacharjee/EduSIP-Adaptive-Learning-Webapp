@@ -9,6 +9,7 @@ import Footer from "../../shared/layout/Footer";
 import usericon from "../../assets/usericon.png";
 import JoinClass from "./JoinClass";
 import LearningPanel from "./LearningPanel";
+import AssignedWork from "./AssignedWork";
 import "./Dashboard.css";
 
 const Dashboard = () => {
@@ -44,7 +45,7 @@ const Dashboard = () => {
       setLoadError(aData.success ? "" : (aData.message || "Could not load your dashboard"));
     } catch (e) { console.error(e); setLoadError("Cannot reach the server. Check your connection."); }
     finally { setLoading(false); }
-  }, [token]);
+    }, [token, BASE_URL]);
 
   useEffect(() => { if (token) fetchData(); }, [token, fetchData]);
   useEffect(() => {
@@ -120,6 +121,8 @@ const Dashboard = () => {
             <button className="db-cta" onClick={() => navigate("/quiz")}>Start Quiz</button>
           </div>
         </section>
+
+        <AssignedWork />
 
         <LearningPanel learning={analytics.learning} />
 

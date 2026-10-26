@@ -79,7 +79,9 @@ const Register = () => {
     );
 
     if (result.success) {
-      if (result.verificationRequired) {
+      if (result.teacherPending) {
+        alert("Teacher account created. An administrator must approve it before you can create classes. You can log in once your email is verified.");
+      } else if (result.verificationRequired) {
         alert(result.emailSent
           ? "Account created. Check your email and click the link to verify it, then log in."
           : "Account created, but we could not send the verification email. Log in and use 'Resend verification email'.");

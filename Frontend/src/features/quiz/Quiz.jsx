@@ -181,6 +181,7 @@ const Quiz = () => {
     const st = location.state;
     if (st && st.subject) {
       pendingTopic.current = st.topic || "";
+      if (st.mode === "level" || st.mode === "practice") setMode(st.mode);
       if (st.questions) setCount(Math.min(Math.max(parseInt(st.questions, 10) || 10, 3), 40));
       if (st.minutes) setMinutes(Math.min(Math.max(parseInt(st.minutes, 10) || 0, 0), 240));
       if (st.target) setTarget(Number(st.target));

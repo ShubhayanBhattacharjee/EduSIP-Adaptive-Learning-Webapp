@@ -104,6 +104,7 @@ exports.registerUser = async (req, res) => {
       bio: String(bio || "").slice(0, 500),
       skills: Array.isArray(skills) ? skills.slice(0, 20).map((s) => String(s).trim().slice(0, 40)).filter(Boolean) : [],
       role: req.body.role === "teacher" ? "teacher" : "student",   // only these two can be chosen at sign-up
+      teacherApproved: req.body.role === "teacher" ? false : undefined,   // a teacher waits for an admin
       password: hashedPassword,
       emailVerified: skipVerification(),
     });
@@ -119,6 +120,7 @@ exports.registerUser = async (req, res) => {
       success: true,
       verificationRequired: !user.emailVerified,
       emailSent,
+      teacherPending: user.role === "teacher",
       message: user.emailVerified? "User registered successfully": "Registration successful. Check your email to verify your account.",
       user: {
         id: user._id,
@@ -169,6 +171,7 @@ exports.loginUser = async (req, res) => {
       return res.status(403).json({ success: false, code: "EMAIL_NOT_VERIFIED", message: "Please verify your email before logging in" });
     }
     const token = generateToken(user._id, isStaff ? "staff" : "public");
+    await User.updateOne({ _id: user._id }, { $set: { lastLoginAt: new Date() } }).catch(() => {});
 
     // Send response
     res.status(200).json({
@@ -203,12 +206,17 @@ exports.staffLogin = async (req, res) => {
 
     const user = await User.findOne({ email });
     if (!user || !user.password || !STAFF_ROLES.includes(user.role)) return bad();
-    if (!(await bcrypt.compare(password, user.password))) return bad();
+    if (!(await bcrypt.compare(password, user.password))) {
+      // Only for real staff accounts, so random emails cannot flood the log. Shown to super admins as "staff_login_failed".
+      await AuditLog.create({ actor: user._id, actorEmail: user.email, action: "staff_login_failed", category: "auth", target: user._id, targetEmail: user.email, details: { ip: req.ip } }).catch(() => {});
+      return bad();
+    }
     if (user.disabled) return res.status(403).json({ success: false, message: "This account is disabled" });
 
     const token = generateToken(user._id, "staff");
+    await User.updateOne({ _id: user._id }, { $set: { lastLoginAt: new Date() } }).catch(() => {});
     try {
-      await AuditLog.create({ actor: user._id, actorEmail: user.email, action: "staff_login", target: user._id, targetEmail: user.email, details: { ip: req.ip } });
+      await AuditLog.create({ actor: user._id, actorEmail: user.email, action: "staff_login", category: "auth", target: user._id, targetEmail: user.email, details: { ip: req.ip }, ip: req.ip });
     } catch (e) {
       console.error("Audit log write failed:", e.message);        // never block the login itself
     }

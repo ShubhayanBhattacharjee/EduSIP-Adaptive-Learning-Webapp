@@ -26,9 +26,20 @@ const StudentDetail = () => {
         <div className="t-head">
           <div>
             <h1>{d.student.fullname}</h1>
-            <p className="t-sub">@{d.student.username} · {d.student.email} · 🔥 {d.student.streak} day streak</p>
+            <p className="t-sub">@{d.student.username}{d.student.email ? ` · ${d.student.email}` : ""} · 🔥 {d.student.streak} day streak</p>
           </div>
         </div>
+
+        {!!d.levels.length && (
+          <div className="t-card">
+            <h3>Level by subject</h3>
+            <div className="t-inline">
+              {d.levels.map((l) => (
+                <span className="t-level" key={l.subject}><b>{l.level}</b>/10 <span className="t-sub">{l.subject} · {l.band}</span></span>
+              ))}
+            </div>
+          </div>
+        )}
 
         <div className="t-card">
           <h3>Topic strength (weakest first)</h3>
@@ -75,6 +86,22 @@ const StudentDetail = () => {
               </div>
             ))}
           </div>
+        </div>
+
+        <div className="t-card">
+          <h3>🚩 Flagged sessions</h3>
+          <p className="t-sub">Sessions where proctoring lowered the trust score. Those answers did not change the student's level.</p>
+          {!d.flaggedSessions.length && <p className="t-sub">None.</p>}
+          {d.flaggedSessions.map((f) => (
+            <div className="t-row t-static" key={f.sessionId}>
+              <span>
+                <b>{f.mode === "placement" ? "Placement test" : `${f.subject || ""}${f.topic ? ` / ${f.topic}` : ""}`}</b>
+                <br /><span className="t-sub">{new Date(f.at).toLocaleString()} · {f.answers} answers · trust {Math.round(f.trust * 100)}%</span>
+                <br /><span className="t-sub">{f.events.length ? f.events.map((e) => `${e.eventType.replace(/_/g, " ").toLowerCase()} ×${e.count}`).join(", ") : "No events stored"}</span>
+              </span>
+              <span className="badge needs-work">{Math.round(f.trust * 100)}%</span>
+            </div>
+          ))}
         </div>
 
         <div className="t-card">

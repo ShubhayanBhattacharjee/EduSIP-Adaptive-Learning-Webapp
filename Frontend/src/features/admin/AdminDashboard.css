@@ -60,3 +60,7 @@ body.dark-mode .admin-dashboard-hero::before {
     linear-gradient(rgba(255, 255, 255, 0.12) 1px, transparent 1px),
     linear-gradient(90deg, rgba(255, 255, 255, 0.12) 1px, transparent 1px);
 }
+/* ── step 4: room for the fixed sidebar and wide tables ── */
+.admin-content { align-items: flex-start; min-width: 0; }
+@media (min-width: 1101px) { .admin-content { padding-left: 290px; } }
+@media (max-width: 1100px) { .main-area { flex-direction: column; } .admin-content { padding: 16px; } }

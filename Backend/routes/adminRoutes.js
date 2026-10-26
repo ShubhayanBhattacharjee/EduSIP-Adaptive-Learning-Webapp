@@ -7,7 +7,6 @@ const adminMiddleware = require("../middleware/adminMiddleware");
 const multer = require("multer");
 const pilot = require("../controllers/pilotController");
 const users = require("../controllers/userAdminController");
-const superAdmin = require("../middleware/superAdminMiddleware");
 const placementAdmin = require("../controllers/placementController");
 
 const upload = multer({
@@ -23,6 +22,16 @@ router.post("/generate-questions", protect, adminMiddleware, adminController.gen
 router.get("/pending-questions", protect, adminMiddleware, adminController.getPending);
 router.patch("/questions/:id/review", protect, adminMiddleware, adminController.reviewQuestion);
 router.post("/questions/bulk-review", protect, adminMiddleware, adminController.bulkReview);
+router.get("/questions", protect, adminMiddleware, adminController.listQuestions);
+router.post("/questions/purge-rejected", protect, adminMiddleware, adminController.purgeRejected);
+router.get("/questions/:id/stats", protect, adminMiddleware, adminController.questionStats);
+router.patch("/questions/:id", protect, adminMiddleware, adminController.updateQuestion);
+router.delete("/questions/:id", protect, adminMiddleware, adminController.deleteQuestion);
+router.get("/catalog", protect, adminMiddleware, adminController.catalog);
+router.delete("/topics/:id", protect, adminMiddleware, adminController.deleteTopic);
+router.get("/system", protect, adminMiddleware, adminController.system);
+router.post("/ml/reload", protect, adminMiddleware, adminController.mlReload);
+router.patch("/users/:id/verify-email", protect, adminMiddleware, users.verifyEmailByAdmin);
 router.get("/topics", protect, adminMiddleware, adminController.getTopics);
 router.post("/topics", protect, adminMiddleware, adminController.upsertTopic);
 router.get("/placement-test", protect, adminMiddleware, placementAdmin.getPlacementTest);
@@ -31,9 +40,8 @@ router.post("/users/:id/reset-placement", protect, adminMiddleware, placementAdm
 router.get("/users", protect, adminMiddleware, users.listUsers);
 router.patch("/users/:id/role", protect, adminMiddleware, users.setRole);
 router.patch("/users/:id/status", protect, adminMiddleware, users.setStatus);
+router.patch("/users/:id/teacher-approval", protect, adminMiddleware, users.setTeacherApproval);
 router.patch("/users/:id/group", protect, adminMiddleware, users.setGroup);
-router.get("/platform-stats", protect, superAdmin, users.platformStats);
-router.get("/audit-log", protect, superAdmin, users.auditLog);
 router.get("/pilot-report", protect, adminMiddleware, pilot.pilotReport);
 router.post("/reconcile", protect, adminMiddleware, pilot.runReconcile);
 

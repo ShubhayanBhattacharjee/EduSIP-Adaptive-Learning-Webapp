@@ -24,6 +24,19 @@ import ResetPassword from "../features/auth/ResetPassword";
 import AdminDashboard from "../features/admin/AdminDashboard";
 import AddQuestion from "../features/admin/AddQuestion";
 import AdminAnalytics from "../features/admin/AdminAnalytics";
+import AdminQuestions from "../features/admin/AdminQuestions";
+import AdminReview from "../features/admin/AdminReview";
+import AdminGenerate from "../features/admin/AdminGenerate";
+import AdminTopics from "../features/admin/AdminTopics";
+import AdminPlacement from "../features/admin/AdminPlacement";
+import AdminUsers from "../features/admin/AdminUsers";
+import AdminSystem from "../features/admin/AdminSystem";
+import SuperDashboard from "../features/superadmin/SuperDashboard";
+import StaffManagement from "../features/superadmin/StaffManagement";
+import SuperClasses from "../features/superadmin/SuperClasses";
+import SuperAuditLog from "../features/superadmin/SuperAuditLog";
+import SuperSettings from "../features/superadmin/SuperSettings";
+import SuperMlControl from "../features/superadmin/SuperMlControl";
 import QuizReview from "../features/quiz/QuizReview";
 import Placement from "../features/placement/Placement";
 import TeacherDashboard from "../features/teacher/TeacherDashboard";
@@ -31,6 +44,9 @@ import ClassView from "../features/teacher/ClassView";
 import StudentDetail from "../features/teacher/StudentDetail";
 
 import "./App.css";
+
+// Pages only a super admin may open. An admin who types the address is sent back to the admin area.
+const Super = ({ children }) => <ProtectedRoute role="superadmin">{children}</ProtectedRoute>;
 
 function App() {
   const dotRef = useRef(null);
@@ -122,6 +138,19 @@ function App() {
               >
                 <Route path="add-question" element={<AddQuestion />} />
                 <Route path="analytics" element={<AdminAnalytics />} />
+                <Route path="questions" element={<AdminQuestions />} />
+                <Route path="review" element={<AdminReview />} />
+                <Route path="generate" element={<AdminGenerate />} />
+                <Route path="topics" element={<AdminTopics />} />
+                <Route path="placement" element={<AdminPlacement />} />
+                <Route path="users" element={<AdminUsers />} />
+                <Route path="system" element={<AdminSystem />} />
+                <Route path="super" element={<Super><SuperDashboard /></Super>} />
+                <Route path="super/staff" element={<Super><StaffManagement /></Super>} />
+                <Route path="super/classes" element={<Super><SuperClasses /></Super>} />
+                <Route path="super/audit" element={<Super><SuperAuditLog /></Super>} />
+                <Route path="super/settings" element={<Super><SuperSettings /></Super>} />
+                <Route path="super/ml" element={<Super><SuperMlControl /></Super>} />
                 <Route index element={<Navigate to="analytics" />} />
               </Route>
 

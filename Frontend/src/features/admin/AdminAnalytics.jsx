@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import adminService from "../../services/adminService";
 import "./AdminAnalytics.css";
+import "./AdminPages.css";
 
 const AdminAnalytics = () => {
   const [analytics, setAnalytics] = useState(null);
@@ -25,8 +26,24 @@ const AdminAnalytics = () => {
   if (loading) return <p>Loading...</p>;
   if (!analytics) return <p>No data available</p>;
 
+  const h = analytics.questionHealth || {};
+  const role = analytics.usersByRole || {};
+  const stat = (n, label, cls = "") => <div className={`ap-stat ${cls}`}><b>{n ?? 0}</b><span>{label}</span></div>;
+
   return (
-    <div className="analytics-wrapper">
+    <div className="analytics-wrapper" style={{ flexDirection: "column", alignItems: "stretch", gap: 16 }}>
+      <div className="ap-grid" style={{ width: "100%" }}>
+        {stat(analytics.activeStudents7d, "Students active this week")}
+        {stat(analytics.answers7d, "Answers this week")}
+        {stat(analytics.newUsers7d, "New sign-ups this week")}
+        {stat(analytics.pendingQuestions, "Questions to review", analytics.pendingQuestions ? "warn" : "")}
+        {stat(analytics.pendingTeachers, "Teachers to approve", analytics.pendingTeachers ? "warn" : "")}
+        {stat(`${role.student || 0} / ${role.teacher || 0} / ${(role.admin || 0) + (role.superadmin || 0)}`, "Students / teachers / staff")}
+        {stat(h.unused, "Live questions never answered")}
+        {stat(h.tooEasy, "Questions that are too easy", h.tooEasy ? "warn" : "")}
+        {stat(h.tooHard, "Questions that are too hard or wrong", h.tooHard ? "bad" : "")}
+      </div>
+
       <div className="analytics-card">
         {/* Left Panel */}
         <div className="analytics-left-panel">

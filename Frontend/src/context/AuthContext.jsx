@@ -128,7 +128,7 @@ export const AuthProvider = ({ children }) => {
         throw new Error(data.message || "Registration failed");
       }
 
-      return { success: true, verificationRequired: !!data.verificationRequired, emailSent: data.emailSent !== false };
+      return { success: true, verificationRequired: !!data.verificationRequired, emailSent: data.emailSent !== false, teacherPending: !!data.teacherPending };
     } catch (error) {
       return { success: false, error: error.message };
     }

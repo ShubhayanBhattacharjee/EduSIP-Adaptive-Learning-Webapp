@@ -36,3 +36,20 @@
 .t-dot.ok { background: #16a34a; }
 .t-dot.bad { background: #ef4444; }
 @media (max-width: 720px) { .t-two { grid-template-columns: 1fr; } .t-head h1 { font-size: 1.4rem; } }
+/* ── step 3: insights, assignments, announcements ── */
+.t-bars { display: flex; align-items: flex-end; gap: 6px; height: 150px; padding-top: 18px; }
+.t-bar-col { flex: 1; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; height: 100%; min-width: 0; }
+.t-bar { width: 100%; max-width: 28px; min-height: 2px; background: var(--accent); border-radius: 6px 6px 0 0; }
+.t-bar-alt { background: #16a34a; }
+.t-bar-num { font-size: 0.7rem; color: var(--subtext-color); height: 14px; }
+.t-bar-lbl { font-size: 0.7rem; color: var(--subtext-color); margin-top: 4px; }
+.t-up { color: #16a34a; }
+.t-down { color: #ef4444; }
+.t-static { cursor: default; align-items: center; }
+.t-form { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; align-items: center; }
+.t-form input, .t-form select { padding: 9px 12px; border-radius: 10px; border: 1px solid var(--glass-border); background: var(--bg-color); color: var(--text-color); }
+.t-form input[type="text"], .t-form input:not([type]) { flex: 1; min-width: 200px; }
+.t-assign { margin-top: 10px; }
+.t-progress { height: 6px; border-radius: 6px; background: var(--glass-bg); overflow: hidden; }
+.t-progress div { height: 100%; background: #16a34a; }
+.t-level { padding: 8px 14px; border: 1px solid var(--glass-border); border-radius: 12px; font-size: 1.1rem; }

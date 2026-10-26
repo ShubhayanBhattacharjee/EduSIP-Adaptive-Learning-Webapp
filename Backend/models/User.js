@@ -33,7 +33,9 @@ const userSchema = new mongoose.Schema({
     googleId: { type: String, unique: true, sparse: true },
     // pilot study group; leave empty and the backend assigns it from the user id
     group: { type: String, enum: ["adaptive", "control"] },
-    consentAt: { type: Date },
+    consentAt: { type: Date },     // when the student agreed that a teacher can see their progress (set when joining a class)
+    // Teachers who sign up themselves wait for an admin. Older teacher accounts have no value here and count as approved.
+    teacherApproved: { type: Boolean },
     // result of the common 10-question placement test (see services/placementService.js)
     placement: {
         done: { type: Boolean, default: false },
@@ -50,6 +52,8 @@ const userSchema = new mongoose.Schema({
         subjects: [{ subject: String, ability: Number, level: Number, band: String, answered: Number }],
     },
     tokensValidAfter: { type: Date },   // logins issued before this moment are no longer accepted
+    lastLoginAt: { type: Date },        // set on every email/password login (shown to super admins)
+    createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },   // set when a super admin creates a staff account
     //enum is used so that only two values are used ...suppose someone tries to access the db and changes the role to hacker the db will reject it ..basic form of protection ...backend security
     resetPasswordToken: String,
     resetPasswordExpire: Date,

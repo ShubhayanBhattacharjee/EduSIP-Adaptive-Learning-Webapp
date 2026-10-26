@@ -1,8 +1,5 @@
 const mongoose = require("mongoose");
 const User = require("../models/User");
-const Class = require("../models/Class");
-const Question = require("../models/Question");
-const Response = require("../models/Response");
 const AuditLog = require("../models/AuditLog");
 const { escapeRegex } = require("../services/adaptiveService");
 
@@ -15,15 +12,12 @@ function canManage(actor, target) {
   return ADMIN_MAY_MANAGE.includes(target.role);
 }
 
-async function audit(req, action, target, details) {
-  try {
-    await AuditLog.create({
-      actor: req.user.id, actorEmail: req.user.email, action,
-      target: target._id, targetEmail: target.email, details,
-    });
-  } catch (e) {
-    console.error("Audit log write failed:", e.message);      // never block the action itself
-  }
+const audit = (req, action, target, details) => AuditLog.record(req, action, target, details, "user");   // never blocks the action itself
+
+// A super admin may never be demoted or disabled if that leaves the platform with no active super admin.
+async function leavesNoSuperadmin(target) {
+  if (target.role !== "superadmin") return false;
+  return (await User.countDocuments({ role: "superadmin", disabled: { $ne: true }, _id: { $ne: target._id } })) === 0;
 }
 
 async function loadTarget(req, res) {
@@ -46,17 +40,29 @@ exports.listUsers = async (req, res) => {
     const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 20, 1), 50);
     const filter = {};
     if (ROLES.includes(req.query.role)) filter.role = req.query.role;
+    if (req.query.status === "disabled") filter.disabled = true;
+    if (req.query.status === "unverified") filter.emailVerified = false;
+    if (req.query.pendingTeachers === "1") { filter.role = "teacher"; filter.teacherApproved = false; }
+    if (["adaptive", "control"].includes(req.query.group)) filter.group = req.query.group;
     const search = String(req.query.search || "").trim().slice(0, 100);
     if (search) {
       const rx = new RegExp(escapeRegex(search), "i");
       filter.$or = [{ email: rx }, { fullname: rx }, { username: rx }];
     }
     const [users, total] = await Promise.all([
-      User.find(filter).select("fullname username email role group disabled createdAt")
+      User.find(filter).select("fullname username email role group disabled teacherApproved emailVerified placement.done placement.level createdAt")
         .sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit).lean(),
       User.countDocuments(filter),
     ]);
-    res.json({ success: true, page, limit, total, users });
+    res.json({
+      success: true, page, limit, total,
+      users: users.map((u) => ({
+        ...u,
+        placementDone: !!(u.placement && u.placement.done),
+        canManage: canManage(req.user, u),            // the buttons the admin may use on this row
+        isYou: String(u._id) === req.user.id,
+      })),
+    });
   } catch (error) {
     console.error("List users error:", error);
     res.status(500).json({ success: false, message: "Failed to load users" });
@@ -76,8 +82,15 @@ exports.setRole = async (req, res) => {
       return res.status(403).json({ success: false, message: "Only a super admin can assign this role" });
     }
     if (target.role === role) return res.json({ success: true, user: { id: target._id, email: target.email, role } });
+    if (role !== "superadmin" && (await leavesNoSuperadmin(target))) {
+      return res.status(409).json({ success: false, message: "This is the last active super admin" });
+    }
 
-    await User.updateOne({ _id: target._id }, { $set: { role } });
+    const set = { role };
+    const isStaff = (r) => ["admin", "superadmin"].includes(r);
+    if (isStaff(role) !== isStaff(target.role)) set.tokensValidAfter = new Date();   // moving in or out of staff: old logins stop working
+    if (role === "teacher") set.teacherApproved = true;          // an admin who makes someone a teacher approves them
+    await User.updateOne({ _id: target._id }, { $set: set });
     await audit(req, "role_change", target, { from: target.role, to: role });
     res.json({ success: true, user: { id: target._id, email: target.email, role } });
   } catch (error) {
@@ -95,6 +108,9 @@ exports.setStatus = async (req, res) => {
     if (!target) return;
     if (!canManage(req.user, target)) return res.status(403).json({ success: false, message: "You cannot change this user" });
 
+    if (disabled && (await leavesNoSuperadmin(target))) {
+      return res.status(409).json({ success: false, message: "This is the last active super admin" });
+    }
     const set = { disabled };
     if (disabled) set.tokensValidAfter = new Date();        // kick out any current login
     await User.updateOne({ _id: target._id }, { $set: set });
@@ -125,39 +141,33 @@ exports.setGroup = async (req, res) => {
   }
 };
 
-/* GET /admin/platform-stats   (super admin) */
-exports.platformStats = async (req, res) => {
+/* PATCH /admin/users/:id/verify-email : mark an email as verified by hand (when the mail never arrives) */
+exports.verifyEmailByAdmin = async (req, res) => {
   try {
-    const since = new Date(Date.now() - 7 * 864e5);
-    const [roles, disabled, classes, questions, answers7, active7] = await Promise.all([
-      User.aggregate([{ $group: { _id: "$role", n: { $sum: 1 } } }]),
-      User.countDocuments({ disabled: true }),
-      Class.countDocuments(),
-      Question.aggregate([{ $group: { _id: { $ifNull: ["$status", "approved"] }, n: { $sum: 1 } } }]),
-      Response.countDocuments({ createdAt: { $gt: since } }),
-      Response.aggregate([{ $match: { createdAt: { $gt: since } } }, { $group: { _id: "$user" } }, { $count: "n" }]),
-    ]);
-    const toMap = (rows) => Object.fromEntries(rows.map((r) => [r._id, r.n]));
-    res.json({
-      success: true,
-      users: { byRole: toMap(roles), disabled },
-      classes,
-      questions: toMap(questions),
-      last7Days: { answers: answers7, activeStudents: active7[0] ? active7[0].n : 0 },
-    });
+    const target = await loadTarget(req, res);
+    if (!target) return;
+    if (!canManage(req.user, target)) return res.status(403).json({ success: false, message: "You cannot change this user" });
+    await User.updateOne({ _id: target._id }, { $set: { emailVerified: true } });
+    await audit(req, "email_verified_by_admin", target, {});
+    res.json({ success: true });
   } catch (error) {
-    console.error("Platform stats error:", error);
-    res.status(500).json({ success: false, message: "Failed to load platform stats" });
+    res.status(500).json({ success: false, message: "Failed to verify email" });
   }
 };
 
-/* GET /admin/audit-log?limit=50   (super admin) */
-exports.auditLog = async (req, res) => {
+/* PATCH /admin/users/:id/teacher-approval   body: { approved: true | false } */
+exports.setTeacherApproval = async (req, res) => {
   try {
-    const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 50, 1), 200);
-    const entries = await AuditLog.find().sort({ createdAt: -1 }).limit(limit).lean();
-    res.json({ success: true, entries });
+    const { approved } = req.body;
+    if (typeof approved !== "boolean") return res.status(400).json({ success: false, message: "approved must be true or false" });
+    const target = await loadTarget(req, res);
+    if (!target) return;
+    if (target.role !== "teacher") return res.status(400).json({ success: false, message: "This user is not a teacher" });
+    await User.updateOne({ _id: target._id }, { $set: { teacherApproved: approved } });
+    await audit(req, approved ? "teacher_approved" : "teacher_revoked", target, { to: approved });
+    res.json({ success: true, user: { id: target._id, email: target.email, teacherApproved: approved } });
   } catch (error) {
-    res.status(500).json({ success: false, message: "Failed to load audit log" });
+    console.error("Teacher approval error:", error);
+    res.status(500).json({ success: false, message: "Failed to change approval" });
   }
 };

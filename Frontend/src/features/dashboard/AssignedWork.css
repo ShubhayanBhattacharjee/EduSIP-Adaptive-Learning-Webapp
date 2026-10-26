@@ -1,0 +1,6 @@
+.aw-card { background: var(--card-bg); border: 1px solid var(--glass-border); border-radius: 16px; padding: 20px; margin: 20px 0; color: var(--text-color); }
+.aw-card h3 { margin: 0 0 8px; }
+.aw-sub { color: var(--subtext-color); font-size: 0.85rem; margin: 4px 0; }
+.aw-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 0; border-top: 1px solid var(--glass-border); }
+.aw-row button { padding: 8px 16px; border: none; border-radius: 10px; background: var(--accent); color: #fff; font-weight: 600; cursor: pointer; }
+.aw-overdue b { color: #ef4444; }

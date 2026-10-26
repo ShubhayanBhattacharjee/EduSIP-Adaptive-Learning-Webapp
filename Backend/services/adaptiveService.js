@@ -6,6 +6,7 @@ const AntiCheatEvent = require("../models/AntiCheatEvent");
 const Topic = require("../models/Topic");
 const User = require("../models/User");
 const ml = require("./mlService");
+const settings = require("./settingsService");
 
 // ---------------------------------------------------------------------------------
 // The adaptive logic. The backend owns ALL state (MongoDB). The ML service is stateless:
@@ -54,10 +55,10 @@ const publicQuestion = (q) => ({
 // control group). FORCE_ADAPTIVE=true in .env gives everyone the adaptive version (demos).
 // An admin can also set user.group by hand.
 async function policyFor(userId) {
-  if (process.env.FORCE_ADAPTIVE === "true") return "adaptive";
+  if (settings.get("forceAdaptive")) return "adaptive";
   const u = await User.findById(userId).select("group").lean();
   if (u && (u.group === "adaptive" || u.group === "control")) return u.group;
-  return process.env.PILOT_MODE === "true" && parseInt(String(userId).slice(-1), 16) % 2 !== 0 ? "control" : "adaptive";
+  return settings.get("pilotMode") && parseInt(String(userId).slice(-1), 16) % 2 !== 0 ? "control" : "adaptive";
 }
 
 async function getSkill(userId, subject, topic) {
@@ -233,7 +234,7 @@ async function buildStudyPlan(userId, { minutes = 30, subject } = {}) {
 
   const recent = await Response.find({ user: userId }).sort({ createdAt: -1 }).limit(50).select("timeTaken").lean();
   const times = recent.map((r) => r.timeTaken).filter((t) => t > 0);
-  const avg = times.length >= 5 ? Math.round(times.reduce((a, b) => a + b, 0) / times.length) : Number(process.env.DEFAULT_SECONDS_PER_QUESTION || 120);
+  const avg = times.length >= 5 ? Math.round(times.reduce((a, b) => a + b, 0) / times.length) : settings.get("defaultSecondsPerQuestion");
     // topics in the bank this student was never asked about: start them at the subject-wide level
   const subjectsInPlay = [...new Set(states.map((s) => s.subject))];
   const bankTopics = await Question.aggregate([

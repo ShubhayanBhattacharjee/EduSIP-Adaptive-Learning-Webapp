@@ -19,9 +19,8 @@ const adaptive = require("./adaptiveService");
 // ---------------------------------------------------------------------------------
 
 const APPROVED = { $nin: ["pending", "rejected"] };
-const SIZE = Number(process.env.PLACEMENT_SIZE || 10);
+const settings = require("./settingsService");
 const MIN_SIZE = 5;                                         // below this the test would be too weak to trust
-const RETAKE_DAYS = Number(process.env.PLACEMENT_RETAKE_DAYS || 90);
 const WANTED_LEVELS = [5, 3, 7, 5, 4, 8, 3, 6, 9, 6];   // strong students need harder questions to show it    // a spread: mostly middle, some easy, some hard
 
 // Deterministic choice (no randomness), so rebuilding on the same bank gives the same test.
@@ -68,7 +67,7 @@ async function saveTest(questionIds, { source, createdBy }) {
 
 async function buildAutoTest(createdBy) {
   const bank = await Question.find({ status: APPROVED }).select("subject topic difficulty level elo").lean();
-  const chosen = chooseQuestions(bank, SIZE);
+  const chosen = chooseQuestions(bank, settings.get("placementSize"));
   if (chosen.length < MIN_SIZE) throw new Error(`Need at least ${MIN_SIZE} approved questions for a placement test (found ${chosen.length}).`);
   return saveTest(chosen.map((q) => q._id), { source: "auto", createdBy });
 }
@@ -90,7 +89,7 @@ async function status(userId) {
   const u = await User.findById(userId).select("placement").lean();
   const p = (u && u.placement) || {};
   const ageDays = p.completedAt ? (Date.now() - new Date(p.completedAt).getTime()) / 864e5 : null;
-  return { done: !!p.done, canRetake: !!p.done && ageDays !== null && ageDays >= RETAKE_DAYS, placement: p.done ? p : null };
+  return { done: !!p.done, canRetake: !!p.done && ageDays !== null && ageDays >= settings.get("placementRetakeDays"), placement: p.done ? p : null };
 }
 
 // Serve question number n (0-based) of the fixed test, and record the exposure.
@@ -205,5 +204,5 @@ async function summary(userId, minutes = 20) {
 }
 
 module.exports = {
-  liveLevel, summary, SIZE, chooseQuestions, buildAutoTest, buildManualTest, getActiveTest, status, startOrResume, next, finalize,
+  liveLevel, summary, get SIZE() { return settings.get("placementSize"); }, chooseQuestions, buildAutoTest, buildManualTest, getActiveTest, status, startOrResume, next, finalize,
 };

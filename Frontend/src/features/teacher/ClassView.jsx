@@ -3,6 +3,9 @@ import { useNavigate, useParams, Link } from "react-router-dom";
 import Navbar from "../../shared/layout/Navbar";
 import Footer from "../../shared/layout/Footer";
 import { classApi } from "../../services/classService";
+import ClassInsights from "./ClassInsights";
+import ClassAssignments from "./ClassAssignments";
+import ClassAnnouncements from "./ClassAnnouncements";
 import "./Teacher.css";
 
 export const ago = (d) => {
@@ -40,6 +43,7 @@ const ClassView = () => {
       act(() => classApi.remove(id), () => navigate("/teacher"));
     }
   };
+  const exportCsv = () => act(() => classApi.exportCsv(id));
   const kick = (s) => {
     if (window.confirm(`Remove ${s.fullname} from this class?`)) act(() => classApi.removeStudent(id, s.id));
   };
@@ -64,6 +68,7 @@ const ClassView = () => {
             </p>
           </div>
           <div className="t-inline">
+            <button className="t-btn t-ghost" onClick={exportCsv}>Export CSV</button>
             <button className="t-btn t-ghost" onClick={rename}>Rename</button>
             <button className="t-btn t-ghost" onClick={newCode}>New code</button>
             <button className="t-btn t-danger" onClick={del}>Delete</button>
@@ -96,6 +101,12 @@ const ClassView = () => {
           </div>
         </div>
 
+        <ClassInsights data={data} />
+
+        <ClassAssignments classId={id} onError={setMsg} />
+
+        <ClassAnnouncements classId={id} items={data.announcements || []} onChange={load} onError={setMsg} />
+
         <div className="t-card">
           <div className="t-head">
             <h3>Students</h3>
@@ -108,12 +119,13 @@ const ClassView = () => {
             <div className="t-scroll">
               <table className="t-table">
                 <thead>
-                  <tr><th>Name</th><th>Answers</th><th>Last 14d</th><th>Streak</th><th>Last active</th><th>Flags</th><th></th></tr>
+                  <tr><th>Name</th><th>Level</th><th>Answers</th><th>Last 14d</th><th>Streak</th><th>Last active</th><th>Flags</th><th></th></tr>
                 </thead>
                 <tbody>
                   {students.map((s) => (
                     <tr key={s.id} onClick={() => navigate(`/teacher/class/${id}/student/${s.id}`)}>
                       <td><b>{s.fullname}</b><br /><span className="t-sub">@{s.username}</span></td>
+                      <td>{s.abilities.length ? s.abilities.map((a) => `${a.level}`).join(" / ") : "–"}</td>
                       <td>{s.totalAnswers}</td>
                       <td>{s.recentSuccessRate === null ? "–" : `${Math.round(s.recentSuccessRate * 100)}%`}</td>
                       <td>🔥 {s.streak}</td>

@@ -9,11 +9,15 @@ const { questionLevel } = require("../services/adaptiveService");
 exports.getPlacementTest = async (req, res) => {
   try {
     const test = await placement.getActiveTest();
+    const [takers, inProgress] = await Promise.all([
+      User.countDocuments({ "placement.done": true }),
+      User.countDocuments({ role: "student", "placement.done": { $ne: true } }),
+    ]);
     const qs = await Question.find({ _id: { $in: test.questionIds } }).select("subject topic difficulty level elo questionText").lean();
     const byId = new Map(qs.map((q) => [String(q._id), q]));
     const questions = test.questionIds.map((id) => byId.get(String(id))).filter(Boolean)
       .map((q) => ({ _id: q._id, subject: q.subject, topic: q.topic, level: questionLevel(q), questionText: q.questionText }));
-    res.json({ success: true, version: test.version, source: test.source, questions });
+    res.json({ success: true, version: test.version, source: test.source, createdAt: test.createdAt, size: questions.length, takers, notYet: inProgress, questions });
   } catch (e) {
     res.status(500).json({ success: false, message: e.message });
   }
@@ -41,7 +45,8 @@ exports.rebuildPlacementTest = async (req, res) => {
 exports.resetPlacement = async (req, res) => {
   try {
     if (!mongoose.isValidObjectId(req.params.id)) return res.status(400).json({ success: false });
-    await User.updateOne({ _id: req.params.id }, { $set: { "placement.done": false } });
+    const r = await User.updateOne({ _id: req.params.id, role: "student" }, { $set: { "placement.done": false } });
+    if (!r.matchedCount) return res.status(404).json({ success: false, message: "Student not found" });
     res.json({ success: true });
   } catch (e) {
     res.status(500).json({ success: false });

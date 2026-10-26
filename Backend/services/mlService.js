@@ -69,6 +69,19 @@ exports.generateQuestions = async (body) => {
   }
 };
 
+// After scripts/refit_elo.py writes new numbers: load them without restarting the ML service.
+exports.reloadParams = () => call("/reload-params", {});
+
+// Super admin screen: the method, its settings and the research numbers.
+exports.modelInfo = async () => {
+  try {
+    const { data } = await client.get("/model-info", { timeout: 5000 });
+    return data;
+  } catch {
+    return null;
+  }
+};
+
 exports.health = async () => {
   try {
     const { data } = await client.get("/health", { timeout: 3000 });

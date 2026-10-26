@@ -16,7 +16,7 @@ const { OVERALL, SESSION_LENGTH, ci, pickNext, applyAnswer, findRemedial, toScal
 
 const MAX_HINTS = 3;
 // REQUIRE_PLACEMENT=true: a student must finish the placement test before any practice. Default off so existing users are not locked out.
-const REQUIRE_PLACEMENT = process.env.REQUIRE_PLACEMENT === "true";
+const settings = require("../services/settingsService");   // requirePlacement can be switched by a super admin without a restart
 
 const APPROVED = { $nin: ["pending", "rejected"] };   // old questions have no status: still allowed
 const MAX_SECONDS = 600;                               // one answer can never count for more than 10 minutes
@@ -52,7 +52,7 @@ exports.startQuiz = async (req, res) => {
     const { subject, topic } = req.body;
     const mode = req.body.mode === "level" ? "level" : "practice";
 
-    if (REQUIRE_PLACEMENT && req.user.role === "student") {
+    if (settings.get("requirePlacement") && req.user.role === "student") {
       const st = await placement.status(req.user.id);
       if (!st.done) {
         return res.status(428).json({ success: false, code: "PLACEMENT_REQUIRED", message: "Take the 10-question placement test first" });

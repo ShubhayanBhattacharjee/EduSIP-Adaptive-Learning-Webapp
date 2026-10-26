@@ -64,6 +64,7 @@ const protect = async (req, res, next) => {
       skills: user.skills,
       role: user.role,
       scope,
+      teacherApproved: user.teacherApproved,
       isAdmin: isStaff
     };
 
@@ -96,4 +97,13 @@ const authorize = (...roles) => {
   };
 };
 
-module.exports = { protect, authorize, STAFF_ROLES };
+// A teacher who signed up on their own cannot use class tools until an admin approves them.
+// (teacherApproved is undefined for teachers created before this rule, and they stay approved.)
+const requireApprovedTeacher = (req, res, next) => {
+  if (req.user.role === "teacher" && req.user.teacherApproved === false) {
+    return res.status(403).json({ success: false, code: "TEACHER_PENDING", message: "Your teacher account is waiting for admin approval" });
+  }
+  next();
+};
+
+module.exports = { protect, authorize, requireApprovedTeacher, STAFF_ROLES };

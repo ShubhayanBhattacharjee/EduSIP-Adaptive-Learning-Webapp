@@ -8,6 +8,7 @@ const classSchema = new mongoose.Schema(
     teacher: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true, index: true },
     joinCode: { type: String, required: true, unique: true },
     students: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
+    announcements: [{ text: { type: String, maxlength: 500 }, createdAt: { type: Date, default: Date.now } }],
   },
   { timestamps: true }
 );

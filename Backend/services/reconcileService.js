@@ -9,7 +9,15 @@ const ml = require("./mlService");
 // Note: the replay uses today's ratings, so the step sizes are close to, not identical to, the original ones.
 let running = false;
 
+const last = { at: null, result: null };      // shown on the admin System page
+
 async function reconcile({ limit = 300 } = {}) {
+  const out = await runReconcile({ limit });
+  if (!out.skipped || out.skipped !== "already running") { last.at = new Date(); last.result = out; }
+  return out;
+}
+
+async function runReconcile({ limit = 300 } = {}) {
   if (running) return { skipped: "already running" };
   running = true;
   try {
@@ -56,4 +64,4 @@ async function reconcile({ limit = 300 } = {}) {
   }
 }
 
-module.exports = { reconcile };
+module.exports = { reconcile, last };

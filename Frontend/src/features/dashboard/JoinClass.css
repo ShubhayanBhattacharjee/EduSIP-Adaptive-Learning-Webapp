@@ -5,4 +5,6 @@
 .jc-form input { flex: 1; padding: 10px 14px; border-radius: 10px; border: 1px solid var(--glass-border); background: var(--bg-color); color: var(--text-color); font-family: monospace; letter-spacing: 2px; }
 .jc-card button { padding: 10px 16px; border: none; border-radius: 10px; background: var(--accent); color: #fff; font-weight: 600; cursor: pointer; }
 .jc-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-top: 1px solid var(--glass-border); }
-.jc-row button { background: transparent; color: #ef4444; border: 1px solid #ef4444; padding: 5px 10px; }
+.jc-row button { background: transparent; color: #ef4444; border: 1px solid #ef4444; padding: 5px 10px; }.jc-consent { display: flex; gap: 8px; align-items: flex-start; font-size: 0.82rem; color: var(--subtext-color); margin: 6px 0 10px; line-height: 1.4; }
+.jc-consent input { margin-top: 3px; }
+.jc-note { margin: 4px 0 8px 12px; padding: 8px 12px; border-left: 3px solid var(--accent); background: var(--glass-bg); border-radius: 0 10px 10px 0; font-size: 0.9rem; }

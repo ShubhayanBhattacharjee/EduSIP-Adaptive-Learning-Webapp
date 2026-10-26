@@ -1,0 +1,51 @@
+/* shared look for the admin pages (questions, review, generate, topics, placement, users, system) */
+.ap-page { width: 100%; max-width: 1080px; color: var(--text-color); }
+.ap-page h2 { margin: 0 0 4px; }
+.ap-sub { color: var(--subtext-color); font-size: 0.88rem; margin: 4px 0 14px; }
+.ap-card { background: var(--card-bg); border: 1px solid var(--glass-border); border-radius: 16px; padding: 18px; margin-bottom: 16px; }
+.ap-card h3 { margin: 0 0 10px; }
+.ap-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin-bottom: 16px; }
+.ap-stat { background: var(--card-bg); border: 1px solid var(--glass-border); border-radius: 14px; padding: 14px; }
+.ap-stat b { display: block; font-size: 1.6rem; }
+.ap-stat span { color: var(--subtext-color); font-size: 0.82rem; }
+.ap-stat.warn { border-color: #f59e0b; }
+.ap-stat.bad { border-color: #ef4444; }
+.ap-bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 14px; }
+.ap-bar input, .ap-bar select, .ap-form input, .ap-form select, .ap-form textarea, .ap-row-input {
+  padding: 8px 12px; border-radius: 10px; border: 1px solid var(--glass-border); background: var(--bg-color); color: var(--text-color); font: inherit;
+}
+.ap-form { display: grid; gap: 10px; }
+.ap-form label { display: grid; gap: 4px; font-size: 0.82rem; color: var(--subtext-color); }
+.ap-form textarea { min-height: 70px; resize: vertical; }
+.ap-two { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.ap-btn { padding: 8px 14px; border: none; border-radius: 10px; background: var(--accent); color: #fff; font-weight: 600; cursor: pointer; }
+.ap-btn:disabled { opacity: .5; cursor: default; }
+.ap-btn.ghost { background: transparent; color: var(--text-color); border: 1px solid var(--glass-border); }
+.ap-btn.danger { background: #ef4444; }
+.ap-btn.ok { background: #16a34a; }
+.ap-btn.sm { padding: 5px 10px; font-size: 0.8rem; }
+.ap-msg { padding: 10px 14px; border-radius: 10px; margin-bottom: 14px; background: var(--glass-bg); border: 1px solid var(--glass-border); }
+.ap-msg.err { border-color: #ef4444; color: #ef4444; }
+.ap-scroll { overflow-x: auto; }
+.ap-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+.ap-table th { text-align: left; color: var(--subtext-color); font-weight: 500; padding: 8px; white-space: nowrap; }
+.ap-table td { padding: 9px 8px; border-top: 1px solid var(--glass-border); vertical-align: top; }
+.ap-chip { display: inline-block; padding: 2px 9px; margin: 1px 3px 1px 0; border-radius: 99px; font-size: 0.74rem; background: var(--glass-bg); border: 1px solid var(--glass-border); }
+.ap-chip.warn { background: #f59e0b22; color: #d97706; border-color: #f59e0b66; }
+.ap-chip.bad { background: #ef444422; color: #ef4444; border-color: #ef444466; }
+.ap-chip.ok { background: #16a34a22; color: #16a34a; border-color: #16a34a66; }
+.ap-pager { display: flex; gap: 10px; align-items: center; justify-content: center; margin-top: 12px; }
+.ap-q { border: 1px solid var(--glass-border); border-radius: 14px; padding: 14px; margin-bottom: 12px; }
+.ap-opt { padding: 5px 10px; margin: 4px 0; border-radius: 8px; background: var(--glass-bg); font-size: 0.9rem; }
+.ap-opt.right { background: #16a34a22; border: 1px solid #16a34a66; }
+.ap-opt small { color: var(--subtext-color); display: block; }
+.ap-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+.ap-share { height: 6px; background: var(--glass-bg); border-radius: 6px; overflow: hidden; margin-top: 3px; }
+.ap-share div { height: 100%; background: var(--accent); }
+.ap-share.right div { background: #16a34a; }
+.ap-checks { display: flex; flex-wrap: wrap; gap: 6px 14px; }
+.ap-checks label { display: flex; gap: 6px; align-items: center; font-size: 0.88rem; color: var(--text-color); }
+.ap-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; }
+.ap-dot.up { background: #16a34a; }
+.ap-dot.down { background: #ef4444; }
+@media (max-width: 720px) { .ap-two { grid-template-columns: 1fr; } }

@@ -13,11 +13,12 @@ const TeacherDashboard = () => {
   const [name, setName] = useState("");
   const [msg, setMsg] = useState("");
   const [loading, setLoading] = useState(true);
+  const [pending, setPending] = useState(false);
 
   const load = useCallback(() => {
     classApi.list()
       .then((d) => setClasses(d.classes))
-      .catch((e) => setMsg(e.message))
+      .catch((e) => { if (e.code === "TEACHER_PENDING") setPending(true); else setMsg(e.message); })
       .finally(() => setLoading(false));
   }, []);
 
@@ -40,6 +41,21 @@ const TeacherDashboard = () => {
   };
 
   const totalStudents = classes.reduce((n, c) => n + c.studentCount, 0);
+
+  if (pending) {
+    return (
+      <>
+        <Navbar />
+        <div className="t-page">
+          <div className="t-card t-empty">
+            <h2>Waiting for approval</h2>
+            <p>Your teacher account has been created. An administrator needs to approve it before you can create classes. Please check back later.</p>
+          </div>
+        </div>
+        <Footer />
+      </>
+    );
+  }
 
   return (
     <>

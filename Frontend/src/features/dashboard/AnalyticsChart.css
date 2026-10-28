@@ -1,17 +1,10 @@
 .chart-container {
-
-    height: 240px;
-
-    width: 100%;
-
-    position: relative;
-
+  position: relative;
+  width: 100%;
 }
 
-canvas {
-
-    width: 100% !important;
-
-    height: 240px !important;
-
+/* scoped on purpose: the old global `canvas { height: 240px !important }` hit every canvas in the app */
+.chart-container canvas {
+  width: 100% !important;
+  height: 100% !important;
 }

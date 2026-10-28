@@ -1,10 +1,40 @@
-.jc-card { background: var(--card-bg); border: 1px solid var(--glass-border); border-radius: 16px; padding: 20px; margin: 20px 0; color: var(--text-color); }
-.jc-card h3 { margin: 0 0 4px; }
-.jc-sub { color: var(--subtext-color); font-size: 0.85rem; margin: 4px 0 12px; }
-.jc-form { display: flex; gap: 8px; margin-bottom: 8px; }
-.jc-form input { flex: 1; padding: 10px 14px; border-radius: 10px; border: 1px solid var(--glass-border); background: var(--bg-color); color: var(--text-color); font-family: monospace; letter-spacing: 2px; }
-.jc-card button { padding: 10px 16px; border: none; border-radius: 10px; background: var(--accent); color: #fff; font-weight: 600; cursor: pointer; }
-.jc-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-top: 1px solid var(--glass-border); }
-.jc-row button { background: transparent; color: #ef4444; border: 1px solid #ef4444; padding: 5px 10px; }.jc-consent { display: flex; gap: 8px; align-items: flex-start; font-size: 0.82rem; color: var(--subtext-color); margin: 6px 0 10px; line-height: 1.4; }
-.jc-consent input { margin-top: 3px; }
-.jc-note { margin: 4px 0 8px 12px; padding: 8px 12px; border-left: 3px solid var(--accent); background: var(--glass-bg); border-radius: 0 10px 10px 0; font-size: 0.9rem; }
+.jc-card {
+  display: flex; flex-direction: column; gap: 14px; height: 100%;
+  padding: 24px; border-radius: 24px; color: var(--text-color);
+  background: var(--card-bg);
+  border: 1px solid color-mix(in srgb, var(--text-color) 11%, transparent);
+}
+.jc-head { display: flex; align-items: center; gap: 14px; }
+.jc-icon { flex-shrink: 0; display: grid; place-items: center; width: 42px; height: 42px; border-radius: 14px; background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--accent); }
+.jc-card h3 { margin: 0; font-size: 17px; font-weight: 700; color: var(--heading-color, inherit); }
+.jc-sub { color: var(--subtext-color); font-size: 13px; margin: 2px 0 0; line-height: 1.45; }
+
+.jc-form { display: flex; gap: 10px; }
+.jc-form input {
+  flex: 1; min-width: 0; padding: 12px 16px; border-radius: 14px; font-size: 15px; font-weight: 600;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: 3px;
+  border: 1px solid color-mix(in srgb, var(--text-color) 14%, transparent);
+  background: var(--bg-color); color: var(--text-color);
+}
+.jc-form input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 16%, transparent); }
+.jc-form button {
+  padding: 12px 20px; border: 0; border-radius: 14px; background: var(--accent); color: #fff;
+  font: inherit; font-size: 14px; font-weight: 700; cursor: pointer; white-space: nowrap;
+  transition: transform .15s, box-shadow .15s;
+}
+.jc-form button:hover { transform: translateY(-1px); box-shadow: 0 10px 22px -10px var(--accent); }
+body.dark-mode .jc-form button { color: #000; }
+
+.jc-consent { display: flex; gap: 10px; align-items: flex-start; font-size: 13px; color: var(--subtext-color); line-height: 1.5; cursor: pointer; }
+.jc-consent input { margin-top: 3px; accent-color: var(--accent); width: 16px; height: 16px; flex-shrink: 0; }
+.jc-msg { margin: 0; font-size: 13px; font-weight: 600; padding: 10px 14px; border-radius: 12px; background: color-mix(in srgb, var(--accent) 10%, transparent); }
+
+.jc-list { display: flex; flex-direction: column; gap: 10px; }
+.jc-class { display: flex; flex-direction: column; gap: 8px; padding: 14px 16px; border-radius: 16px; background: color-mix(in srgb, var(--text-color) 4%, transparent); border: 1px solid color-mix(in srgb, var(--text-color) 8%, transparent); }
+.jc-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.jc-name { display: flex; flex-direction: column; min-width: 0; }
+.jc-name b { font-size: 15px; font-weight: 600; }
+.jc-row button { background: transparent; color: #ef4444; border: 1px solid rgba(239,68,68,.5); padding: 6px 14px; border-radius: 10px; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
+.jc-row button:hover { background: rgba(239,68,68,.1); }
+.jc-note { display: flex; gap: 10px; align-items: flex-start; margin: 0; padding: 10px 14px; font-size: 14px; line-height: 1.5; border-left: 3px solid var(--accent); background: color-mix(in srgb, var(--accent) 7%, transparent); border-radius: 0 12px 12px 0; }
+.jc-note svg { flex-shrink: 0; margin-top: 3px; color: var(--accent); }

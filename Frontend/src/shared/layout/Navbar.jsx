@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from "react";
-import { NavLink, useNavigate } from "react-router-dom";
+import React, { useState, useEffect, useRef } from "react";
+import { NavLink, Link, useNavigate } from "react-router-dom";
 import { useTheme } from "../../context/ThemeContext";
 import { useAuth } from "../../context/AuthContext";
-import { Sun, Moon, Menu } from "lucide-react";
+import { Sun, Moon, Menu, ChevronDown } from "lucide-react";
 import logo from "../../assets/logo.png";
 import "./Navbar.css";
 
@@ -12,162 +12,143 @@ const Navbar = () => {
   const navigate = useNavigate();
 
   const [menuOpen, setMenuOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+  const [acctOpen, setAcctOpen] = useState(false);
+  const acctRef = useRef(null);
+
+  // close the account menu on outside click or Esc
+  useEffect(() => {
+    if (!acctOpen) return;
+    const onDown = (e) => { if (acctRef.current && !acctRef.current.contains(e.target)) setAcctOpen(false); };
+    const onKey = (e) => { if (e.key === "Escape") setAcctOpen(false); };
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [acctOpen]);
+  const closeMenu = () => setMenuOpen(false);
 
   const handleLogout = () => {
     logout();
     navigate("/login");
-    setMenuOpen(false);
+    closeMenu();
+    setAcctOpen(false);
   };
-  const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {
-    const handleScrollEffect = () => {
-      setScrolled(window.scrollY > 20);
-    };
-
-    window.addEventListener("scroll", handleScrollEffect);
-    return () => window.removeEventListener("scroll", handleScrollEffect);
+    const onScroll = () => setScrolled(window.scrollY > 20);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
   }, []);
-  // ✅ FIXED SCROLL FUNCTION
-  const handleScroll = (id) => {
-    if (window.location.pathname !== "/") {
-      navigate("/", { state: { scrollTo: id } });
-    } else {
-      const el = document.getElementById(id);
-      if (el) {
-        el.scrollIntoView({ behavior: "smooth" });
-      }
-    }
-    setMenuOpen(false);
-  };
+
+  // Esc closes the mobile menu
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onKey = (e) => { if (e.key === "Escape") setMenuOpen(false); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [menuOpen]);
+
+  
+
+  const isStaff = ["admin", "superadmin"].includes(user?.role);
 
   return (
-    <nav className={`navbar ${scrolled ? "scrolled" : ""}`}>
-      {/* LEFT LOGO */}
-      <div className="nav-left">
-        <img src={logo} alt="EduSip" className="nav-logo" />
-      </div>
+    <>
+      <nav className={`navbar ${scrolled ? "scrolled" : ""}`}>
+        <div className="nav-left">
+          <Link to="/" aria-label="EduSip home">
+            <img src={logo} alt="EduSip" className="nav-logo" />
+          </Link>
+        </div>
 
-      {/* CENTER PILL */}
-      <div className="nav-pill">
-        <NavLink to="/" className="nav-item">
-          Home
-        </NavLink>
+        <div className="nav-pill">
+          <NavLink to="/" end className="nav-item">Home</NavLink>
+          {user?.role === "student" && <NavLink to="/quiz" className="nav-item">Quiz</NavLink>}
+          {user?.role === "student" && <NavLink to="/dashboard" className="nav-item">Dashboard</NavLink>}
+          {isStaff && <NavLink to="/admin/analytics" className="nav-item">Admin</NavLink>}
+          {user?.role === "teacher" && <NavLink to="/teacher" className="nav-item">Classes</NavLink>}
+          {/* <span className="nav-item" role="button" tabIndex={0}
+            onClick={() => handleScroll("team")}
+            onKeyDown={(e) => { if (e.key === "Enter") handleScroll("team"); }}>
+            Contact
+          </span> */}
+        </div>
 
-        {/* ✅ FIXED */}
-        {user?.role === "student" && (
-          <NavLink to="/quiz" className="nav-item">
-            Quiz
-          </NavLink>
-        )}
-
-        {user?.role === "student" && (
-          <NavLink to="/dashboard" className="nav-item">
-            Dashboard
-          </NavLink>
-        )}
-
-        {["admin", "superadmin"].includes(user?.role) && (
-          <NavLink to="/admin/analytics" className="nav-item">
-            Admin
-          </NavLink>
-        )}
-        {user?.role === "teacher" && (
-          <NavLink to="/teacher" className="nav-item">Classes</NavLink>
-        )}
-        <span className="nav-item" onClick={() => handleScroll("team")}>
-          Contact
-        </span>
-      </div>
-
-      {/* RIGHT SIDE */}
-      <div className="nav-right">
-        {/* THEME */}
-        <div className="theme-section">
-          <Sun size={18} className={!isDarkMode ? "icon-active" : "icon-dim"} />
-
-          <div
-            className={`theme-toggle ${isDarkMode ? "dark" : ""}`}
-            onClick={toggleTheme}
-          >
-            <div className="toggle-circle"></div>
+        <div className="nav-right">
+          <div className="theme-section">
+            <Sun size={18} className={!isDarkMode ? "icon-active" : "icon-dim"} aria-hidden="true" />
+            <button type="button" role="switch" aria-checked={isDarkMode} aria-label="Dark mode"
+              className={`theme-toggle ${isDarkMode ? "dark" : ""}`} onClick={toggleTheme}>
+              <span className="toggle-circle" />
+            </button>
+            <Moon size={18} className={isDarkMode ? "icon-active" : "icon-dim"} aria-hidden="true" />
           </div>
 
-          <Moon size={18} className={isDarkMode ? "icon-active" : "icon-dim"} />
-        </div>
+          {!user ? (
+            <>
+              <button className="nav-btn" onClick={() => navigate("/login")}>Log in</button>
+              <button className="nav-cta" onClick={() => navigate("/register")}>Register</button>
+            </>
+                    ) : (
+            <div className="nav-acct" ref={acctRef}>
+              <button type="button" className="nav-cta nav-acct-btn" aria-haspopup="menu"
+                aria-expanded={acctOpen} onClick={() => setAcctOpen((o) => !o)}>
+                Profile <ChevronDown size={15} className={acctOpen ? "chev open" : "chev"} />
+              </button>
+              {acctOpen && (
+                <div className="nav-menu" role="menu">
+                  <div className="nav-menu-head">
+                    <b>{user.fullname}</b>
+                    <span>{user.email}</span>
+                  </div>
+                  <button type="button" role="menuitem" className="nav-menu-item"
+                    onClick={() => { setAcctOpen(false); navigate("/profile"); }}>You</button>
+                  <button type="button" role="menuitem" className="nav-menu-item danger"
+                    onClick={handleLogout}>Log out</button>
+                </div>
+              )}
+            </div>
+          )}
 
-        {/* AUTH */}
-        {!user ? (
-          <>
-            <button className="nav-btn" onClick={() => navigate("/login")}>
-              Login
-            </button>
-
-            <button className="nav-cta" onClick={() => navigate("/register")}>
-              Register
-            </button>
-          </>
-        ) : (
-          <button className="nav-cta" onClick={handleLogout}>
-            Logout
+          <button type="button" className="hamburger"aria-label="Open menu" onClick={() => setMenuOpen(true)}>
+            <Menu size={26} />
           </button>
-        )}
-
-        {/* HAMBURGER */}
-        <div className="hamburger" onClick={() => setMenuOpen(true)}>
-          <Menu size={28} />
         </div>
-      </div>
+      </nav>
 
-      {/* MOBILE PANEL */}
-      <div className={`mobile-panel ${menuOpen ? "open" : ""}`}>
-        <div className="mobile-close" onClick={() => setMenuOpen(false)}>
-          CLOSE ✕
-        </div>
+      {/* MOBILE PANEL — outside <nav> so backdrop-filter on the navbar can't break it */}
+      <div className={`mobile-backdrop ${menuOpen ? "open" : ""}`} onClick={closeMenu} />
+      <div className={`mobile-panel ${menuOpen ? "open" : ""}`} aria-hidden={!menuOpen}>
+        <button type="button" className="mobile-close" onClick={closeMenu}>Close</button>
 
         <div className="mobile-links">
-          <NavLink to="/" onClick={() => setMenuOpen(false)}>
-            HOME
-          </NavLink>
-
-          {/* ✅ FIXED */}
-          {user?.role === "student" && (
-            <NavLink to="/quiz" onClick={() => setMenuOpen(false)}>
-              QUIZ
-            </NavLink>
-          )}
-          {user?.role === "student" && (
-            <NavLink to="/dashboard" onClick={() => setMenuOpen(false)}>
-              DASHBOARD
-            </NavLink>
-          )}
-
-          {["admin", "superadmin"].includes(user?.role) && (
-            <NavLink to="/admin/analytics" onClick={() => setMenuOpen(false)}>
-              ADMIN
-            </NavLink>
-          )}
-
-          {user?.role === "teacher" && (
-            <NavLink to="/teacher" className="nav-item">Classes</NavLink>
-          )}
-          <span onClick={() => handleScroll("team")}>CONTACT</span>
+          <NavLink to="/" end onClick={closeMenu}>Home</NavLink>
+          {user?.role === "student" && <NavLink to="/quiz" onClick={closeMenu}>Quiz</NavLink>}
+          {user?.role === "student" && <NavLink to="/dashboard" onClick={closeMenu}>Dashboard</NavLink>}
+          {isStaff && <NavLink to="/admin/analytics" onClick={closeMenu}>Admin</NavLink>}
+          {user?.role === "teacher" && <NavLink to="/teacher" onClick={closeMenu}>Classes</NavLink>}
+          {/* <span onClick={() => handleScroll("team")}>Contact</span> */}
         </div>
 
         <div className="mobile-auth">
           {!user ? (
             <>
-              <button onClick={() => { navigate("/login"); setMenuOpen(false); }}>Login</button>
-              <button className="primary" onClick={() => { navigate("/register"); setMenuOpen(false); }}>Register</button>
+              <button onClick={() => { navigate("/login"); closeMenu(); }}>Log in</button>
+              <button className="primary" onClick={() => { navigate("/register"); closeMenu(); }}>Register</button>
             </>
           ) : (
-            <button className="primary" onClick={handleLogout}>
-              Logout
-            </button>
+                        <>
+              <button onClick={() => { navigate("/profile"); closeMenu(); }}>You</button>
+              <button className="primary" onClick={handleLogout}>Log out</button>
+            </>
           )}
         </div>
       </div>
-    </nav>
+    </>
   );
 };
 

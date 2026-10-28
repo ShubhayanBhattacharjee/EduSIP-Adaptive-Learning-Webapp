@@ -2,8 +2,6 @@ import React, { useEffect } from "react";
 import { useLocation } from "react-router-dom";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
-import Navbar from "../../shared/layout/Navbar"; // 👈 ADD THIS
-import Footer from "../../shared/layout/Footer"; // 👈 ADD THIS
 import Hero from "./Hero";
 import TeamSection from "./TeamSection";
 
@@ -49,12 +47,10 @@ const Home = () => {
 
   return (
     <>
-      <Navbar />
       <div className="home">
         <Hero />
         <TeamSection />
       </div>
-      <Footer />
     </>
   );
 };

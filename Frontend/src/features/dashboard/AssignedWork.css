@@ -1,6 +1,37 @@
-.aw-card { background: var(--card-bg); border: 1px solid var(--glass-border); border-radius: 16px; padding: 20px; margin: 20px 0; color: var(--text-color); }
-.aw-card h3 { margin: 0 0 8px; }
-.aw-sub { color: var(--subtext-color); font-size: 0.85rem; margin: 4px 0; }
-.aw-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 0; border-top: 1px solid var(--glass-border); }
-.aw-row button { padding: 8px 16px; border: none; border-radius: 10px; background: var(--accent); color: #fff; font-weight: 600; cursor: pointer; }
-.aw-overdue b { color: #ef4444; }
+.aw-card {
+  display: flex; flex-direction: column; gap: 14px;
+  padding: 22px 24px; border-radius: 24px; color: var(--text-color);
+  background: var(--card-bg);
+  border: 1px solid color-mix(in srgb, var(--text-color) 11%, transparent);
+  border-left: 4px solid var(--accent);
+}
+.aw-head { display: flex; align-items: center; gap: 14px; }
+.aw-icon { display: grid; place-items: center; width: 42px; height: 42px; border-radius: 14px; background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--accent); }
+.aw-card h3 { margin: 0; font-size: 17px; font-weight: 700; color: var(--heading-color, inherit); }
+.aw-sub { color: var(--subtext-color); font-size: 13px; margin: 2px 0 0; line-height: 1.45; }
+
+.aw-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(420px, 1fr)); gap: 12px; }
+.aw-row {
+  display: flex; align-items: center; gap: 14px; padding: 14px 16px; border-radius: 16px;
+  background: color-mix(in srgb, var(--text-color) 4%, transparent);
+  border: 1px solid color-mix(in srgb, var(--text-color) 8%, transparent);
+}
+.aw-body { flex: 1; min-width: 0; }
+.aw-body b { font-size: 15px; font-weight: 600; }
+.aw-due { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 600; color: var(--subtext-color); white-space: nowrap; }
+.aw-row button {
+  display: inline-flex; align-items: center; gap: 6px; cursor: pointer; font-family: inherit;
+  padding: 9px 16px; border: 0; border-radius: 12px; background: var(--accent); color: #fff; font-weight: 700; font-size: 14px;
+  transition: transform .15s, box-shadow .15s;
+}
+.aw-row button:hover { transform: translateY(-1px); box-shadow: 0 10px 22px -10px var(--accent); }
+body.dark-mode .aw-row button { color: #000; }
+.aw-overdue { border-color: rgba(239,68,68,.45); }
+.aw-overdue b, .aw-overdue .aw-due { color: #ef4444; }
+.aw-done { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--subtext-color); margin: 0; }
+
+@media (max-width: 560px) {
+  .aw-list { grid-template-columns: 1fr; }
+  .aw-row { flex-wrap: wrap; }
+  .aw-body { flex-basis: 100%; }
+}

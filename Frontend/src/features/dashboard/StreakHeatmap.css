@@ -1,45 +1,32 @@
-/* ================= MONTH LABELS ================= */
+/* Year heatmap: columns share the card width equally, cells stay square */
+.hm { display: flex; flex-direction: column; gap: 14px; }
 
-.heatmap-months {
-  display: grid;
-  gap: 13px;
-  font-size: 12px;
-  margin-bottom: 10px;
-  color: #131416;
-}
-.dark-mode .heatmap-months {
-  color: #036df0; /* subtle light-gray for dark mode */
-}
-.heatmap-months span {
-  font-weight: 500;
-}
+.hm-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.hm-facts { display: flex; gap: 22px; flex-wrap: wrap; font-size: 13px; color: var(--subtext-color); }
+.hm-facts b { color: var(--text-color); font-size: 15px; font-weight: 700; margin-right: 4px; font-variant-numeric: tabular-nums; }
+.hm-legend { display: flex; align-items: center; gap: 5px; font-size: 12px; color: var(--subtext-color); }
+.hm-legend .hm-cell { width: 13px; height: 13px; aspect-ratio: auto; }
 
-/* ================= HEATMAP GRID ================= */
+.hm-scroll { overflow-x: auto; padding-bottom: 6px; scrollbar-width: thin; }
+.hm-board { display: grid; grid-template-columns: 30px minmax(0, 1fr); gap: 8px; min-width: 760px; }
 
-.heatmap-container {
-  display: flex;
-  gap: 12px; /* 👈 THIS creates clean month/week spacing */
+.hm-days { display: grid; grid-template-rows: repeat(7, 1fr); gap: 4px; padding-top: 24px; font-size: 11px; color: var(--subtext-color); text-align: right; align-items: center; }
+.hm-right { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.hm-months { display: grid; font-size: 12px; color: var(--subtext-color); height: 18px; }
+.hm-months span { white-space: nowrap; }
+
+.hm-grid { display: grid; grid-template-rows: repeat(7, auto); gap: 4px; }
+
+.hm-cell {
+  display: block; aspect-ratio: 1; width: 100%; border-radius: 4px;
+  transition: transform .15s ease, box-shadow .15s ease;
 }
-
-/* each column = one week */
-.heatmap-week {
-  display: grid;
-  grid-template-rows: repeat(7, 18px);
-  gap: 7px;
-}
-
-/* ================= CELLS ================= */
-
-.heatmap-cell {
-  width: 18px;
-  height: 18px;
-  border-radius: 3px;
-  background: #2452ad;
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
-}
-
-.heatmap-cell:hover {
-  transform: scale(1.15);
-  box-shadow: 0 2px 6px rgba(0,0,0,0.2);
-  cursor: pointer;
-}
+.hm-l0 { background: color-mix(in srgb, var(--text-color) 8%, transparent); }
+.hm-l1 { background: color-mix(in srgb, var(--accent) 28%, transparent); }
+.hm-l2 { background: color-mix(in srgb, var(--accent) 52%, transparent); }
+.hm-l3 { background: color-mix(in srgb, var(--accent) 78%, transparent); }
+.hm-l4 { background: var(--accent); box-shadow: 0 0 10px -2px var(--accent); }
+.hm-out { visibility: hidden; }
+.hm-future { opacity: .4; }
+.hm-today { outline: 2px solid var(--accent); outline-offset: 1px; }
+.hm-grid .hm-cell:hover { transform: scale(1.35); position: relative; z-index: 2; }

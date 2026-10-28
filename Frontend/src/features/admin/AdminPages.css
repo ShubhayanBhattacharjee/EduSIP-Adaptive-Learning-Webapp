@@ -1,51 +1,300 @@
-/* shared look for the admin pages (questions, review, generate, topics, placement, users, system) */
-.ap-page { width: 100%; max-width: 1080px; color: var(--text-color); }
-.ap-page h2 { margin: 0 0 4px; }
-.ap-sub { color: var(--subtext-color); font-size: 0.88rem; margin: 4px 0 14px; }
-.ap-card { background: var(--card-bg); border: 1px solid var(--glass-border); border-radius: 16px; padding: 18px; margin-bottom: 16px; }
-.ap-card h3 { margin: 0 0 10px; }
-.ap-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin-bottom: 16px; }
-.ap-stat { background: var(--card-bg); border: 1px solid var(--glass-border); border-radius: 14px; padding: 14px; }
-.ap-stat b { display: block; font-size: 1.6rem; }
-.ap-stat span { color: var(--subtext-color); font-size: 0.82rem; }
-.ap-stat.warn { border-color: #f59e0b; }
-.ap-stat.bad { border-color: #ef4444; }
-.ap-bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 14px; }
-.ap-bar input, .ap-bar select, .ap-form input, .ap-form select, .ap-form textarea, .ap-row-input {
-  padding: 8px 12px; border-radius: 10px; border: 1px solid var(--glass-border); background: var(--bg-color); color: var(--text-color); font: inherit;
+/* ═════════════════════════════════════════════════════════════
+   Shared look for the admin + super admin pages (ap-*).
+   Pages render inside .ad (AdminDashboard.css), which provides the --ad-* tokens.
+   One solid accent colour, hairline borders, small mono labels. No gradients.
+   ═════════════════════════════════════════════════════════════ */
+
+/* ═════════════ PAGE + HEADINGS ═════════════ */
+.ap-page { width: 100%; max-width: 100%; color: var(--text-color); }
+
+.ap-page > h2 {
+  font-size: clamp(26px, 2.6vw, 36px);
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: -.035em;
+  color: var(--heading-color, inherit);
 }
-.ap-form { display: grid; gap: 10px; }
-.ap-form label { display: grid; gap: 4px; font-size: 0.82rem; color: var(--subtext-color); }
-.ap-form textarea { min-height: 70px; resize: vertical; }
-.ap-two { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-.ap-btn { padding: 8px 14px; border: none; border-radius: 10px; background: var(--accent); color: #fff; font-weight: 600; cursor: pointer; }
-.ap-btn:disabled { opacity: .5; cursor: default; }
-.ap-btn.ghost { background: transparent; color: var(--text-color); border: 1px solid var(--glass-border); }
-.ap-btn.danger { background: #ef4444; }
-.ap-btn.ok { background: #16a34a; }
-.ap-btn.sm { padding: 5px 10px; font-size: 0.8rem; }
-.ap-msg { padding: 10px 14px; border-radius: 10px; margin-bottom: 14px; background: var(--glass-bg); border: 1px solid var(--glass-border); }
-.ap-msg.err { border-color: #ef4444; color: #ef4444; }
-.ap-scroll { overflow-x: auto; }
-.ap-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
-.ap-table th { text-align: left; color: var(--subtext-color); font-weight: 500; padding: 8px; white-space: nowrap; }
-.ap-table td { padding: 9px 8px; border-top: 1px solid var(--glass-border); vertical-align: top; }
-.ap-chip { display: inline-block; padding: 2px 9px; margin: 1px 3px 1px 0; border-radius: 99px; font-size: 0.74rem; background: var(--glass-bg); border: 1px solid var(--glass-border); }
-.ap-chip.warn { background: #f59e0b22; color: #d97706; border-color: #f59e0b66; }
-.ap-chip.bad { background: #ef444422; color: #ef4444; border-color: #ef444466; }
-.ap-chip.ok { background: #16a34a22; color: #16a34a; border-color: #16a34a66; }
-.ap-pager { display: flex; gap: 10px; align-items: center; justify-content: center; margin-top: 12px; }
-.ap-q { border: 1px solid var(--glass-border); border-radius: 14px; padding: 14px; margin-bottom: 12px; }
-.ap-opt { padding: 5px 10px; margin: 4px 0; border-radius: 8px; background: var(--glass-bg); font-size: 0.9rem; }
-.ap-opt.right { background: #16a34a22; border: 1px solid #16a34a66; }
-.ap-opt small { color: var(--subtext-color); display: block; }
-.ap-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
-.ap-share { height: 6px; background: var(--glass-bg); border-radius: 6px; overflow: hidden; margin-top: 3px; }
-.ap-share div { height: 100%; background: var(--accent); }
-.ap-share.right div { background: #16a34a; }
-.ap-checks { display: flex; flex-wrap: wrap; gap: 6px 14px; }
-.ap-checks label { display: flex; gap: 6px; align-items: center; font-size: 0.88rem; color: var(--text-color); }
-.ap-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; }
-.ap-dot.up { background: #16a34a; }
-.ap-dot.down { background: #ef4444; }
-@media (max-width: 720px) { .ap-two { grid-template-columns: 1fr; } }
+.ap-page h3 { font-size: 16px; font-weight: 700; letter-spacing: -.01em; color: var(--heading-color, inherit); }
+
+.ap-sub { margin: 6px 0 18px; font-size: 14px; line-height: 1.55; color: var(--ad-muted); }
+.ap-card .ap-sub { margin: 4px 0 12px; font-size: 13px; }
+
+/* ═════════════ CARDS ═════════════ */
+.ap-card {
+  margin-bottom: var(--ad-gap);
+  padding: 22px;
+  border-radius: var(--ad-r);
+  background: var(--card-bg);
+  border: 1px solid var(--ad-line);
+}
+.ap-card h3 { margin: 0 0 12px; }
+
+/* ═════════════ STAT TILES ═════════════ */
+.ap-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: var(--ad-gap);
+  margin-bottom: var(--ad-gap);
+}
+.ap-stat {
+  display: flex;
+  flex-direction: column-reverse;         /* label on top, number below, without changing the markup */
+  justify-content: flex-end;
+  gap: 10px;
+  min-height: 104px;
+  padding: 18px 20px;
+  border-radius: var(--ad-r);
+  background: var(--card-bg);
+  border: 1px solid var(--ad-line);
+  transition: border-color .2s, transform .2s;
+}
+.ap-stat:hover { border-color: var(--ad-line-strong); transform: translateY(-2px); }
+.ap-stat b {
+  display: block;
+  font-family: var(--ad-mono);
+  font-size: clamp(26px, 2.4vw, 34px);
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: -.05em;
+  font-variant-numeric: tabular-nums;
+  color: var(--heading-color, inherit);
+}
+.ap-stat span { font-size: 13px; line-height: 1.35; color: var(--ad-muted); }
+.ap-stat.warn { border-color: color-mix(in srgb, var(--ad-amber) 45%, transparent); }
+.ap-stat.warn b { color: var(--ad-amber); }
+.ap-stat.bad  { border-color: color-mix(in srgb, var(--ad-red) 45%, transparent); }
+.ap-stat.bad b { color: var(--ad-red); }
+
+/* ═════════════ TOOLBAR + FORMS ═════════════ */
+.ap-bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 16px; }
+
+.ap-bar input, .ap-bar select,
+.ap-form input, .ap-form select, .ap-form textarea,
+.ap-row-input {
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--ad-line-strong);
+  background: var(--bg-color);
+  color: var(--text-color);
+  font: inherit;
+  font-size: 14px;
+  transition: border-color .15s, box-shadow .15s;
+}
+.ap-bar input::placeholder, .ap-form input::placeholder, .ap-form textarea::placeholder { color: var(--ad-muted); opacity: .8; }
+.ap-bar input:focus, .ap-bar select:focus,
+.ap-form input:focus, .ap-form select:focus, .ap-form textarea:focus,
+.ap-row-input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 15%, transparent);
+}
+
+.ap-form { display: grid; gap: 14px; }
+.ap-form label {
+  display: grid;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--ad-muted);
+}
+.ap-form label input, .ap-form label select, .ap-form label textarea {
+  font-weight: 400;
+  color: var(--text-color);
+}
+.ap-form textarea { min-height: 84px; resize: vertical; }
+.ap-two { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+
+.ap-checks { display: flex; flex-wrap: wrap; gap: 8px 18px; }
+.ap-checks label {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  font-family: inherit;
+  font-size: 14px;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--text-color);
+}
+.ap-checks input { accent-color: var(--accent); }
+
+/* ═════════════ BUTTONS ═════════════ */
+.ap-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 18px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform .15s, box-shadow .2s, background .15s, border-color .15s;
+}
+body.dark-mode .ap-btn { color: #000; }
+.ap-btn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 10px 24px -12px var(--accent); }
+.ap-btn:disabled { opacity: .45; cursor: default; }
+.ap-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.ap-btn.ghost { background: transparent; color: var(--text-color); border-color: var(--ad-line-strong); }
+body.dark-mode .ap-btn.ghost { color: var(--text-color); }
+.ap-btn.ghost:hover:not(:disabled) { background: var(--ad-soft); border-color: var(--accent); box-shadow: none; }
+
+.ap-btn.danger { background: var(--ad-red); color: #fff; }
+.ap-btn.ok { background: var(--ad-green); color: #fff; }
+body.dark-mode .ap-btn.danger, body.dark-mode .ap-btn.ok { color: #fff; }
+.ap-btn.danger:hover:not(:disabled) { box-shadow: 0 10px 24px -12px var(--ad-red); }
+.ap-btn.ok:hover:not(:disabled) { box-shadow: 0 10px 24px -12px var(--ad-green); }
+
+.ap-btn.sm { padding: 6px 12px; font-size: 13px; border-radius: 10px; }
+
+/* ═════════════ MESSAGES ═════════════ */
+.ap-msg {
+  margin-bottom: 16px;
+  padding: 12px 16px;
+  border-radius: 14px;
+  font-size: 14px;
+  line-height: 1.5;
+  background: var(--ad-soft);
+  border: 1px solid var(--ad-line);
+}
+.ap-msg.err {
+  color: var(--ad-red);
+  background: color-mix(in srgb, var(--ad-red) 8%, transparent);
+  border-color: color-mix(in srgb, var(--ad-red) 35%, transparent);
+}
+
+/* ═════════════ TABLES ═════════════ */
+.ap-scroll { overflow-x: auto; scrollbar-width: thin; scrollbar-color: var(--ad-line-strong) transparent; }
+.ap-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.ap-table th {
+  padding: 10px 12px;
+  text-align: left;
+  white-space: nowrap;
+  font-family: var(--ad-mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--ad-muted);
+}
+.ap-table td { padding: 12px; border-top: 1px solid var(--ad-line); vertical-align: top; }
+.ap-table tbody tr { transition: background .15s; }
+.ap-table tbody tr:hover { background: var(--ad-soft); }
+
+/* ═════════════ CHIPS + DOTS ═════════════ */
+.ap-chip {
+  display: inline-block;
+  margin: 1px 4px 1px 0;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 500;
+  background: var(--ad-soft);
+  border: 1px solid var(--ad-line);
+}
+.ap-chip.warn { color: var(--ad-amber); background: color-mix(in srgb, var(--ad-amber) 10%, transparent); border-color: color-mix(in srgb, var(--ad-amber) 32%, transparent); }
+.ap-chip.bad  { color: var(--ad-red);   background: color-mix(in srgb, var(--ad-red) 10%, transparent);   border-color: color-mix(in srgb, var(--ad-red) 32%, transparent); }
+.ap-chip.ok   { color: var(--ad-green); background: color-mix(in srgb, var(--ad-green) 10%, transparent); border-color: color-mix(in srgb, var(--ad-green) 32%, transparent); }
+
+.ap-dot { display: inline-block; width: 8px; height: 8px; margin-right: 8px; border-radius: 50%; }
+.ap-dot.up { background: var(--ad-green); box-shadow: 0 0 8px var(--ad-green); }
+.ap-dot.down { background: var(--ad-red); box-shadow: 0 0 8px var(--ad-red); }
+
+/* ═════════════ PAGER + ACTIONS ═════════════ */
+.ap-pager { display: flex; gap: 12px; align-items: center; justify-content: center; margin-top: 16px; font-family: var(--ad-mono); font-size: 12px; color: var(--ad-muted); }
+.ap-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+
+/* ═════════════ QUESTION BLOCKS (review, question bank) ═════════════ */
+.ap-q {
+  margin-bottom: 12px;
+  padding: 18px;
+  border-radius: 16px;
+  background: var(--card-bg);
+  border: 1px solid var(--ad-line);
+  transition: border-color .2s;
+}
+.ap-q:hover { border-color: var(--ad-line-strong); }
+
+.ap-opt {
+  margin: 6px 0;
+  padding: 8px 12px;
+  border-radius: 10px;
+  font-size: 14px;
+  background: var(--ad-soft);
+  border: 1px solid transparent;
+}
+.ap-opt.right {
+  background: color-mix(in srgb, var(--ad-green) 10%, transparent);
+  border-color: color-mix(in srgb, var(--ad-green) 35%, transparent);
+}
+.ap-opt small { display: block; margin-top: 2px; color: var(--ad-muted); }
+
+/* thin share bar: how many picked an option */
+.ap-share { height: 4px; margin-top: 6px; border-radius: 4px; background: var(--ad-soft); overflow: hidden; }
+.ap-share div { height: 100%; border-radius: 4px; background: var(--accent); transition: width .8s cubic-bezier(.2, .8, .2, 1); }
+.ap-share.right div { background: var(--ad-green); }
+
+/* ═════════════ RESPONSIVE ═════════════ */
+@media (max-width: 720px) {
+  .ap-two { grid-template-columns: 1fr; }
+  .ap-card { padding: 18px 16px; }
+  .ap-stat { min-height: 92px; padding: 16px; }
+  .ap-bar input, .ap-bar select { flex: 1 1 140px; }
+}
+
+/* ═════════════ RADIO + CHECKBOX (question editor, filters) ═════════════
+   Without this the text-input style above would stretch them. */
+.ap-form input[type="radio"],
+.ap-form input[type="checkbox"],
+.ap-bar input[type="checkbox"] {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  padding: 0;
+  cursor: pointer;
+  accent-color: var(--accent);
+  box-shadow: none;
+}
+
+/* ═════════════ TWO-COLUMN PAGE (Add question: form + CSV upload) ═════════════ */
+.ap-split {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  gap: var(--ad-gap);
+  align-items: start;
+}
+.ap-split .ap-card { margin-bottom: 0; }
+@media (max-width: 1100px) { .ap-split { grid-template-columns: minmax(0, 1fr); } }
+
+/* file picker */
+.ap-file input[type="file"] {
+  width: 100%;
+  padding: 12px;
+  border-style: dashed;
+  color: var(--ad-muted);
+  cursor: pointer;
+}
+.ap-file input[type="file"]::file-selector-button {
+  margin-right: 12px;
+  padding: 6px 12px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--ad-soft);
+  color: var(--text-color);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* success message (the plain .ap-msg is neutral, .err is red) */
+.ap-msg.ok {
+  color: var(--ad-green);
+  background: color-mix(in srgb, var(--ad-green) 8%, transparent);
+  border-color: color-mix(in srgb, var(--ad-green) 35%, transparent);
+}

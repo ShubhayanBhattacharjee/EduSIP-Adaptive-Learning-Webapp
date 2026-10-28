@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useState } from "react";
 import { classApi } from "../../services/classService";
 import quizApi from "../../services/quizApi";
 
-const empty = { title: "", subject: "", topic: "", mode: "practice", questions: 10, minutes: 0, dueAt: "" };
+const empty = { title: "", kind: "quiz", details: "", subject: "", topic: "", mode: "practice", questions: 10, minutes: 0, dueAt: "" };
 
 const ClassAssignments = ({ classId, onError }) => {
   const [list, setList] = useState(null);
@@ -50,27 +50,40 @@ const ClassAssignments = ({ classId, onError }) => {
       <h3>📝 Assignments</h3>
       <form className="t-form" onSubmit={create}>
         <input placeholder="Title (e.g. Fractions homework)" value={form.title} onChange={set("title")} maxLength={120} required />
-        <select value={form.mode} onChange={set("mode")}>
-          <option value="practice">Practice a topic</option>
-          <option value="level">Level test (whole subject)</option>
+        <select value={form.kind} onChange={set("kind")}>
+          <option value="quiz">Quiz questions</option>
+          <option value="reading">Theory reading</option>
         </select>
+        {form.kind === "quiz" && (
+          <select value={form.mode} onChange={set("mode")}>
+            <option value="practice">Practice a topic</option>
+            <option value="level">Level test (whole subject)</option>
+          </select>
+        )}
         <select value={form.subject} onChange={set("subject")} required>
           <option value="">Subject…</option>
           {subjects.map((s) => <option key={s} value={s}>{s}</option>)}
         </select>
-        {form.mode === "practice" && (
-          <select value={form.topic} onChange={set("topic")} required disabled={!form.subject}>
+        {(form.kind === "reading" || form.mode === "practice") && (
+          <select value={form.topic} onChange={set("topic")} required={form.kind === "quiz"} disabled={!form.subject}>
             <option value="">Topic…</option>
             {topics.map((t) => <option key={t} value={t}>{t}</option>)}
           </select>
         )}
-        <select value={form.questions} onChange={set("questions")}>
-          {[5, 10, 15, 20, 30].map((n) => <option key={n} value={n}>{n} questions</option>)}
-        </select>
-        <select value={form.minutes} onChange={set("minutes")}>
-          <option value={0}>No time limit</option>
-          {[10, 15, 20, 30, 45, 60].map((n) => <option key={n} value={n}>{n} min</option>)}
-        </select>
+        {form.kind === "quiz" && (
+          <>
+            <select value={form.questions} onChange={set("questions")}>
+              {[5, 10, 15, 20, 30].map((n) => <option key={n} value={n}>{n} questions</option>)}
+            </select>
+            <select value={form.minutes} onChange={set("minutes")}>
+              <option value={0}>No time limit</option>
+              {[10, 15, 20, 30, 45, 60].map((n) => <option key={n} value={n}>{n} min</option>)}
+            </select>
+          </>
+        )}
+        {form.kind === "reading" && (
+          <textarea placeholder="What to read (chapter, page range, link, notes)" value={form.details} onChange={set("details")} maxLength={1000} rows={2} />
+        )}
         <label className="t-sub">Due <input type="date" value={form.dueAt} onChange={set("dueAt")} /></label>
         <button className="t-btn" type="submit" disabled={busy}>Assign</button>
       </form>
@@ -84,7 +97,12 @@ const ClassAssignments = ({ classId, onError }) => {
           <div className="t-assign" key={a.id}>
             <div className="t-row t-static">
               <span>
-                <b>{a.title}</b> <span className="t-sub">· {a.mode === "level" ? `${a.subject} level test` : `${a.subject} / ${a.topic}`} · {a.questions} Qs{a.minutes ? ` · ${a.minutes} min` : ""}</span>
+                <b>{a.title}</b>{" "}
+                <span className="t-sub">
+                  · {a.kind === "reading"
+                    ? `${a.subject}${a.topic ? ` / ${a.topic}` : ""} · Reading`
+                    : <>{a.mode === "level" ? `${a.subject} level test` : `${a.subject} / ${a.topic}`} · {a.questions} Qs{a.minutes ? ` · ${a.minutes} min` : ""}</>}
+                </span>
                 <br /><span className="t-sub">{a.dueAt ? `Due ${new Date(a.dueAt).toLocaleDateString()}${late ? " (past)" : ""}` : "No due date"}</span>
               </span>
               <span className="t-inline">

@@ -2,24 +2,12 @@ import React from "react";
 import "./TeamSection.css";
 import logo from "../../assets/logo.png";
 const TeamSection = () => {
-  const teamMembers = [
+    const teamMembers = [
     {
-      name: "Priyangshu Saha",
-      roll: "23051446",
-      email: "23051446@kiit.ac.in",
-      role: "AI/ML",
-    },
-    {
-      name: "Saarnab Bishayee",
-      roll: "23051457",
-      email: "23051457@kiit.ac.in",
-      role: "AI/ML",
-    },
-    {
-      name: "Akashdeep Sengupta",
-      roll: "23052862",
-      email: "23052862@kiit.ac.in",
-      role: "Anti-Cheat",
+      name: "Vineet Jha",
+      roll: "2305100",
+      email: "2305100@kiit.ac.in",
+      role: "ML",
     },
     {
       name: "Trayambak Sarkar",

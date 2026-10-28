@@ -85,6 +85,16 @@ async function getActiveTest() {
   return t || buildAutoTest();
 }
 
+// Only questions that can really be shown (text + exactly 4 options). A broken question in the test used to
+// render as a blank card and freeze the test; now it is skipped everywhere (serve, total, finalize).
+async function getPlayable() {
+  const test = await getActiveTest();
+  const qs = await Question.find({ _id: { $in: test.questionIds } }).select("questionText options").lean();
+  const ok = new Set(qs.filter((q) => q.questionText && String(q.questionText).trim() && Array.isArray(q.options) && q.options.length === 4 && q.options.every((o) => o != null && String(o).trim())).map((q) => String(q._id)));
+  const ids = test.questionIds.filter((id) => ok.has(String(id)));
+  return { test, ids };
+}
+
 async function status(userId) {
   const u = await User.findById(userId).select("placement").lean();
   const p = (u && u.placement) || {};
@@ -95,7 +105,8 @@ async function status(userId) {
 // Serve question number n (0-based) of the fixed test, and record the exposure.
 async function serve(userId, sessionId, test) {
   const answered = new Set((await Response.distinct("question", { user: userId, sessionId })).map(String));
-  const nextId = test.questionIds.map(String).find((id) => !answered.has(id));
+  const { ids } = await getPlayable();
+  const nextId = ids.map(String).find((id) => !answered.has(id));
   if (!nextId) return null;
   const q = await Question.findById(nextId).select("-correctAnswer -misconceptions -hint").lean();
   if (!q) return null;
@@ -111,24 +122,27 @@ async function startOrResume(userId, crypto) {
   const st = await status(userId);
   if (st.done && !st.canRetake) return { error: "done", placement: st.placement };
 
-  const test = await getActiveTest();
+  const { test, ids } = await getPlayable();
   const open = await Exposure.findOne({ user: userId, mode: "placement", answered: false }).sort({ servedAt: -1 });
   if (open) {
     const q = await Question.findById(open.question).select("-correctAnswer -misconceptions -hint").lean();
     const count = await Response.countDocuments({ user: userId, sessionId: open.sessionId });
-    if (q) return { sessionId: open.sessionId, total: test.questionIds.length, answered: count, question: adaptive.publicQuestion(q), resumed: true };
+    if (q && q.questionText && Array.isArray(q.options) && q.options.length === 4) return { sessionId: open.sessionId, total: ids.length, answered: count, question: adaptive.publicQuestion(q), resumed: true };
+    await Exposure.deleteOne({ _id: open._id });       // stale/broken open question: drop it and serve the next good one
+    const nq = await serve(userId, open.sessionId, test);
+    if (nq) return { sessionId: open.sessionId, total: ids.length, answered: count, question: nq, resumed: true };
   }
   const sessionId = crypto.randomUUID();
   const question = await serve(userId, sessionId, test);
   if (!question) return { error: "empty" };
-  return { sessionId, total: test.questionIds.length, answered: 0, question, resumed: false };
+  return { sessionId, total: ids.length, answered: 0, question, resumed: false };
 }
 
 // Called after every placement answer. Returns the next question, or null when the test is over.
 async function next(userId, sessionId) {
-  const test = await getActiveTest();
+  const { test, ids } = await getPlayable();
   const question = await serve(userId, sessionId, test);
-  return { question, total: test.questionIds.length };
+  return { question, total: ids.length };
 }
 
 async function seedSkill(userId, subject, topic, ability, answered) {
@@ -145,9 +159,9 @@ async function finalize(userId, sessionId) {
   if (done.done && done.placement && done.placement.sessionId === sessionId) return { ok: true, placement: done.placement, already: true };
 
   const rows = await Response.find({ user: userId, sessionId, mode: "placement" }).sort({ createdAt: 1 }).lean();
-  const test = await getActiveTest();
-  if (rows.length < test.questionIds.length) {
-    return { ok: false, reason: "incomplete", answered: rows.length, total: test.questionIds.length };
+  const { test, ids } = await getPlayable();
+  if (rows.length < ids.length) {
+    return { ok: false, reason: "incomplete", answered: rows.length, total: ids.length };
   }
 
   const trust = await adaptive.integrityTrust(userId, sessionId);
@@ -204,5 +218,5 @@ async function summary(userId, minutes = 20) {
 }
 
 module.exports = {
-  liveLevel, summary, get SIZE() { return settings.get("placementSize"); }, chooseQuestions, buildAutoTest, buildManualTest, getActiveTest, status, startOrResume, next, finalize,
+  liveLevel, summary, get SIZE() { return settings.get("placementSize"); }, chooseQuestions, buildAutoTest, buildManualTest, getActiveTest, getPlayable, status, startOrResume, next, finalize,
 };

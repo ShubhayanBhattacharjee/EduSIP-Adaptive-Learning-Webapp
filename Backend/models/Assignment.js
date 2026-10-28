@@ -13,6 +13,9 @@ const assignmentSchema = new mongoose.Schema(
     questions: { type: Number, min: 3, max: 40, default: 10 },
     minutes: { type: Number, min: 0, max: 240, default: 0 },
     dueAt: { type: Date },
+    kind: { type: String, enum: ["quiz", "reading"], default: "quiz" },
+    details: { type: String, trim: true, maxlength: 1000, default: "" },   // what to read (reading only)
+    completedBy: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }], // reading only
   },
   { timestamps: true }
 );

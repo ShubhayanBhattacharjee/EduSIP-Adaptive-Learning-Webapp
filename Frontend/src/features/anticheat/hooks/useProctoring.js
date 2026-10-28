@@ -74,7 +74,7 @@ const useProctoring = (isActive = false) => {
     try {
       // Initialize exam-guard features manually
       isInitialized.current = true;
-
+      isQuizCompleted.current = false;
       // Request fullscreen
       document.documentElement.requestFullscreen().catch(() => {
         console.log('Could not enter fullscreen');
@@ -139,18 +139,17 @@ const useProctoring = (isActive = false) => {
     }
   }, [isActive, showWarning]);
 
-  const stopProctoring = useCallback(() => {
-    if (!isInitialized.current) return;
-    
-    isInitialized.current = false;
-    isQuizCompleted.current = true; // Mark quiz as completed
-    
-    // Exit fullscreen mode
+    const stopProctoring = useCallback(() => {
+    // always mark finished + leave fullscreen, even if init never completed
+    isQuizCompleted.current = true;
     if (document.fullscreenElement) {
-      document.exitFullscreen().catch(() => {
-        console.log('Could not exit fullscreen');
-      });
+      document.exitFullscreen().catch(() => {});
     }
+
+    if (!isInitialized.current) return;
+    isInitialized.current = false;
+
+    // Remove all event listeners using stored references
     
     // Remove all event listeners using stored references
     const listeners = eventListenersRef.current;

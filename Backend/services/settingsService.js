@@ -6,7 +6,7 @@ const Setting = require("../models/Setting");
 const DEFS = {
   forceAdaptive:             { type: "boolean", env: "FORCE_ADAPTIVE",               def: false, label: "Force adaptive for everyone (no control group)" },
   pilotMode:                 { type: "boolean", env: "PILOT_MODE",                   def: false, label: "Pilot mode (split students into adaptive / control)" },
-  requirePlacement:          { type: "boolean", env: "REQUIRE_PLACEMENT",            def: false, label: "Students must finish the placement test first" },
+  requirePlacement:          { type: "boolean", env: "REQUIRE_PLACEMENT",            def: true, label: "Students must finish the placement test first" },
   placementSize:             { type: "number",  env: "PLACEMENT_SIZE",               def: 10,  min: 5,  max: 30,  label: "Placement test length (questions)" },
   placementRetakeDays:       { type: "number",  env: "PLACEMENT_RETAKE_DAYS",        def: 90,  min: 1,  max: 365, label: "Days before a student may retake placement" },
   defaultSecondsPerQuestion: { type: "number",  env: "DEFAULT_SECONDS_PER_QUESTION", def: 120, min: 10, max: 600, label: "Default seconds per question (new students)" },

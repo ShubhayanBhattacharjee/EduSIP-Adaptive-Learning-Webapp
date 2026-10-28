@@ -17,16 +17,17 @@
 ═══════════════════════════════════════ */
 .edu-hero {
   position: relative;
-  min-height: 100vh;
+  min-height: calc(100dvh - 98px);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: flex-start;
-  padding: 130px 48px 100px;
+  padding: 72px 48px 100px;
   gap: 72px;
   overflow: hidden;
-  margin-top: 100px;
+  margin-top: 0;
 }
+
 
 .edu-grid-bg {
   position: absolute;
@@ -1453,3 +1454,53 @@ body.dark-mode .testimonial:hover {
   cursor: pointer;
   font-size: 16px;
 }
+
+/* ═══ TESTIMONIALS (new) ═══ */
+.tcards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+}
+.tcard {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 28px;
+  padding: 28px;
+  text-align: left;
+  border-radius: 16px;
+  background: var(--bg-color);
+  border: 1px solid color-mix(in srgb, var(--text-color) 12%, transparent);
+  transition: border-color .2s, transform .2s;
+}
+.tcard:hover { border-color: var(--accent); transform: translateY(-3px); }
+.tcard blockquote {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 500;
+  line-height: 1.55;
+  letter-spacing: -0.005em;
+  color: var(--heading-color);
+}
+.tcard figcaption { display: flex; align-items: center; gap: 12px; }
+.tcard-av {
+  flex-shrink: 0;
+  width: 40px; height: 40px;
+  display: grid; place-items: center;
+  border-radius: 50%;
+  font-size: 16px; font-weight: 600;
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+}
+.tcard-name { display: block; font-size: 14px; font-weight: 600; color: var(--heading-color); }
+.tcard-role { display: block; margin-top: 2px; font-size: 12.5px; color: var(--subtext-color); }
+
+@media (max-width: 900px) {
+  .tcards { grid-template-columns: 1fr; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tcard { transition: none; }
+  .tcard:hover { transform: none; }
+}
+

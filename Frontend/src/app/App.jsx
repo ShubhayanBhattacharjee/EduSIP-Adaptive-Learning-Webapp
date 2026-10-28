@@ -1,20 +1,25 @@
-// src/App.jsx
-import React, { useEffect, useRef } from "react";
+// src/app/App.jsx
+import React from "react";
 import {
   BrowserRouter as Router,
   Routes,
   Route,
   Navigate,
+  Outlet,
 } from "react-router-dom";
 
 import { ThemeProvider } from "../context/ThemeContext";
 import { AuthProvider } from "../context/AuthContext";
+
+import Navbar from "../shared/layout/Navbar";
+import Footer from "../shared/layout/Footer";
 
 import GoogleSuccess from "../features/auth/GoogleSuccess";
 import Home from "../features/home/Home";
 import Login from "../features/auth/Login";
 import Register from "../features/auth/Register";
 import Dashboard from "../features/dashboard/Dashboard";
+import Profile from "../features/profile/Profile";
 import Quiz from "../features/quiz/Quiz";
 import ProtectedRoute from "./ProtectedRoute";
 import ForgotPassword from "../features/auth/ForgotPassword";
@@ -48,34 +53,30 @@ import "./App.css";
 // Pages only a super admin may open. An admin who types the address is sent back to the admin area.
 const Super = ({ children }) => <ProtectedRoute role="superadmin">{children}</ProtectedRoute>;
 
+/**
+ * The permanent shell: Navbar on top, Footer at the bottom.
+ * Whatever page the router picks is rendered in the middle (<Outlet />),
+ * and that middle area grows or shrinks to fit. The page scrolls only
+ * when the content is taller than the space between navbar and footer.
+ */
+const AppLayout = () => (
+  <div className="app-shell">
+    <Navbar />
+    <main className="app-main">
+      <Outlet />
+    </main>
+    <Footer />
+  </div>
+);
+
 function App() {
-  const dotRef = useRef(null);
-
-  useEffect(() => {
-    const move = (e) => {
-      const { clientX, clientY } = e;
-
-      // 🔴 SMALL DOT (exact cursor)
-      if (dotRef.current) {
-        dotRef.current.style.left = `${clientX}px`;
-        dotRef.current.style.top = `${clientY}px`;
-      }
-    };
-
-    window.addEventListener("mousemove", move);
-
-    return () => window.removeEventListener("mousemove", move);
-  }, []);
-
   return (
     <ThemeProvider>
       <AuthProvider>
         <Router>
-          <div className="App">
-            {/* <Navbar /> */}
-            {/* <div ref={dotRef} className="cursor-dot"></div> */}
-
-            <Routes>
+          <Routes>
+            
+            <Route element={<AppLayout />}>
               {/* Public */}
               <Route path="/" element={<Home />} />
               <Route path="/login" element={<Login />} />
@@ -85,7 +86,6 @@ function App() {
               <Route path="/verify-email/:code" element={<VerifyEmail />} />
               <Route path="/staff/login" element={<StaffLogin />} />
               <Route path="/reset-password/:token" element={<ResetPassword />} />
-
               {/* Student */}
               <Route
                 path="/dashboard"
@@ -95,7 +95,7 @@ function App() {
                   </ProtectedRoute>
                 }
               />
-
+              <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
               <Route
                 path="/quiz"
                 element={
@@ -127,6 +127,7 @@ function App() {
               <Route path="/teacher" element={<ProtectedRoute role="teacher"><TeacherDashboard /></ProtectedRoute>} />
               <Route path="/teacher/class/:id" element={<ProtectedRoute role="teacher"><ClassView /></ProtectedRoute>} />
               <Route path="/teacher/class/:id/student/:sid" element={<ProtectedRoute role="teacher"><StudentDetail /></ProtectedRoute>} />
+
               {/* Admin */}
               <Route
                 path="/admin/*"
@@ -153,12 +154,11 @@ function App() {
                 <Route path="super/ml" element={<Super><SuperMlControl /></Super>} />
                 <Route index element={<Navigate to="analytics" />} />
               </Route>
+            </Route>
 
-              {/* Fallback */}
-              <Route path="*" element={<Navigate to="/" />} />
-            </Routes>
-            {/* <Footer/> */}
-          </div>
+            {/* Fallback */}
+            <Route path="*" element={<Navigate to="/" />} />
+          </Routes>
         </Router>
       </AuthProvider>
     </ThemeProvider>

@@ -2,6 +2,8 @@ import React from "react";
 import { motion } from "framer-motion";
 import "./QuestionCard.css";
 
+const LETTERS = ["A", "B", "C", "D", "E", "F"];
+
 const QuestionCard = ({
   questionNumber,
   totalQuestions,
@@ -16,104 +18,104 @@ const QuestionCard = ({
   hintsLeft,
   onMoreHint,
   hideHint,
+  hideCounter,
   onNext,
   isLastQuestion,
   hasSelectedOption,
   isTransitioning,
 }) => {
   const handleOptionClick = (index) => {
-    if (!isTransitioning) {
-      onOptionSelect(index);
-    }
+    if (!isTransitioning) onOptionSelect(index);
   };
 
   const handleNextClick = () => {
-    if (hasSelectedOption && !isTransitioning) {
-      onNext();
-    }
+    if (hasSelectedOption && !isTransitioning) onNext();
   };
 
+  const hintList = (hints && hints.length ? hints : hint ? [hint] : []).filter(Boolean);
+
   return (
-    <motion.div
-      className="question-card"
-      initial={{ x: 150, opacity: 0 }}
-      animate={{ x: 0, opacity: 1 }}
-      exit={{ x: -150, opacity: 0 }}
-      transition={{ duration: 0.35 }}
+    <motion.section
+      className="qcard"
+      initial={{ opacity: 0, y: 16 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -16 }}
+      transition={{ duration: 0.25 }}
     >
-      <p className="question-number">
-        Question {questionNumber} of {totalQuestions}
-      </p>
+      {!hideCounter && (
+        <p className="qcard-counter">
+          Question {questionNumber} of {totalQuestions}
+        </p>
+      )}
 
-      <h1 id="questionText">{questionText}</h1>
+      <h2 className="qcard-question">{questionText}</h2>
 
-      <div className="options-grid">
+      <div className="qcard-options" role="radiogroup">
         {options?.map((option, index) => (
-          <motion.button
+          <button
             key={index}
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            className={`option-btn ${
-              selectedOption === index ? "option-selected" : ""
-            }`}
+            type="button"
+            role="radio"
+            aria-checked={selectedOption === index}
+            className={`qcard-opt ${selectedOption === index ? "on" : ""}`}
             onClick={() => handleOptionClick(index)}
             disabled={isTransitioning}
           >
-            <span>{option}</span>
-          </motion.button>
+            <span className="qcard-letter">{LETTERS[index]}</span>
+            <span className="qcard-opt-text">{option}</span>
+          </button>
         ))}
       </div>
 
-      {!hideHint && showHint && (
+      {!hideHint && showHint && hintList.length > 0 && (
         <motion.div
-          className="hint-content"
-          initial={{ opacity: 0, y: 10 }}
+          className="qcard-hint"
+          initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
         >
-          {(hints && hints.length ? hints : hint ? [hint] : []).map((h, i) => (
-            <p key={i}>💡 {hints && hints.length > 1 ? `Hint ${i + 1}: ` : ""}{h}</p>
+          {hintList.map((h, i) => (
+            <p key={i}>
+              {hintList.length > 1 && <b>Hint {i + 1} · </b>}
+              {h}
+            </p>
           ))}
+          {onMoreHint && hintsLeft > 0 && (
+            <button
+              type="button"
+              className="qcard-link"
+              onClick={onMoreHint}
+              disabled={isTransitioning}
+            >
+              More help ({hintsLeft} left)
+            </button>
+          )}
         </motion.div>
       )}
 
-      <div className="action-buttons">
-        {!hideHint && (
-          <motion.button
-            className={`hint-btn ${showHint ? "active" : ""}`}
+      <div className="qcard-actions">
+        {!hideHint ? (
+          <button
+            type="button"
+            className={`qcard-ghost ${showHint ? "active" : ""}`}
             onClick={onHint}
             disabled={isTransitioning}
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
           >
-            💡 {showHint ? "Hide Hint" : "Show Hint"}
-          </motion.button>
+            💡 {showHint ? "Hide hint" : "Show hint"}
+          </button>
+        ) : (
+          <span />
         )}
 
-        {!hideHint && showHint && onMoreHint && hintsLeft > 0 && (
-          <motion.button
-            className="hint-btn"
-            onClick={onMoreHint}
-            disabled={isTransitioning}
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-          >
-            ➕ More help ({hintsLeft} left)
-          </motion.button>
-        )}
-
-        <motion.button
-          className={`next-btn ${
-            !hasSelectedOption || isTransitioning ? "disabled" : ""
-          }`}
+        <button
+          type="button"
+          className="qcard-next"
           onClick={handleNextClick}
           disabled={!hasSelectedOption || isTransitioning}
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
         >
-          {isLastQuestion ? "Finish Quiz" : "Next Question"}
-        </motion.button>
+          {isTransitioning ? "Saving…" : isLastQuestion ? "Finish" : "Next →"}
+        </button>
       </div>
-    </motion.div>
+    </motion.section>
   );
 };
 

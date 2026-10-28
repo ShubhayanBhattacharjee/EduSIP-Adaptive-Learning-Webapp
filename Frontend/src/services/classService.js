@@ -67,4 +67,6 @@ export const classApi = {
   mine: () => call("/mine"),
   leave: (id) => call(`/${id}/leave`, "DELETE"),
   myAssignments: () => call("/assignments/mine"),
+  completeReading: (aid) => call(`/assignments/${aid}/complete`, "POST"),
+
 };

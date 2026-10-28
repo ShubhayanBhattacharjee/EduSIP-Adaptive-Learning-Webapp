@@ -10,6 +10,7 @@ router.get("/assignments/mine", protect, authorize("student"), c.myAssignments);
 router.post("/join", protect, authorize("student"), c.joinClass);
 router.get("/mine", protect, c.myMemberships);
 router.delete("/:id/leave", protect, c.leaveClass);
+router.post("/assignments/:aid/complete", protect, authorize("student"), c.completeReading);
 
 // teacher / admin
 router.post("/", ...teacher, c.createClass);

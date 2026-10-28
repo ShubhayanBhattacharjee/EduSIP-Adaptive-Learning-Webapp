@@ -1,55 +1,383 @@
-.t-page { max-width: 1100px; margin: 0 auto; padding: 110px 20px 50px; color: var(--text-color); }
-.t-head { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; margin-bottom: 20px; }
-.t-head h1 { margin: 0; font-size: 1.8rem; }
-.t-sub { color: var(--subtext-color); font-size: 0.9rem; margin: 4px 0; }
-.t-back { color: var(--accent); text-decoration: none; font-size: 0.9rem; display: inline-block; margin-bottom: 10px; }
-.t-card { background: var(--card-bg); border: 1px solid var(--glass-border); border-radius: 16px; padding: 20px; margin-bottom: 20px; }
-.t-card h3 { margin: 0 0 10px; }
-.t-empty { text-align: center; color: var(--subtext-color); }
-.t-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 20px; }
-.t-two { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-.t-inline { display: flex; gap: 8px; flex-wrap: wrap; }
-.t-inline input, .t-head input { padding: 10px 14px; border-radius: 10px; border: 1px solid var(--glass-border); background: var(--bg-color); color: var(--text-color); }
-.t-btn { padding: 10px 16px; border: none; border-radius: 10px; background: var(--accent); color: #fff; font-weight: 600; cursor: pointer; transition: 0.2s; }
-.t-btn:hover { opacity: 0.85; transform: translateY(-1px); }
-.t-ghost { background: transparent; color: var(--text-color); border: 1px solid var(--glass-border); }
-.t-danger { background: #ef4444; }
-.t-sm { padding: 5px 10px; font-size: 0.8rem; }
-.t-code { font-family: monospace; font-size: 1.4rem; letter-spacing: 3px; text-align: center; padding: 10px; margin: 12px 0; border: 2px dashed var(--accent); border-radius: 10px; cursor: pointer; }
-.t-code-inline { font-family: monospace; letter-spacing: 2px; color: var(--accent); }
-.t-msg { background: var(--glass-bg); border: 1px solid var(--glass-border); padding: 10px 14px; border-radius: 10px; margin-bottom: 16px; }
-.t-row { display: flex; justify-content: space-between; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--glass-border); cursor: pointer; flex-wrap: wrap; }
-.t-row:last-child { border-bottom: none; }
-.t-scroll { overflow-x: auto; }
-.t-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
-.t-table th { text-align: left; color: var(--subtext-color); font-weight: 500; padding: 8px; }
-.t-table td { padding: 10px 8px; border-top: 1px solid var(--glass-border); }
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap');
+
+/* ═════════════════════════════════════════════════════════════
+   Teacher pages: class list, class page, student page.
+   Same look as the student and admin dashboards: hairline borders,
+   one solid accent colour, small mono labels. No gradients, no animation.
+   ═════════════════════════════════════════════════════════════ */
+
+/* ═════════════ ROOT + TOKENS ═════════════ */
+.t-page {
+  --t-line: color-mix(in srgb, var(--text-color) 10%, transparent);
+  --t-line-strong: color-mix(in srgb, var(--text-color) 20%, transparent);
+  --t-soft: color-mix(in srgb, var(--text-color) 5%, transparent);
+  --t-muted: var(--subtext-color, #6b7280);
+  --t-green: #16a34a;
+  --t-red: #dc2626;
+  --t-amber: #d97706;
+  --t-gap: 16px;
+  --t-r: 20px;
+  --t-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  width: 100%;
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 28px clamp(16px, 3vw, 48px) 80px;
+  color: var(--text-color);
+  font-family: "DM Sans", "Poppins", system-ui, sans-serif;
+}
+.t-page *, .t-page *::before, .t-page *::after { box-sizing: border-box; }
+.t-page h1, .t-page h2, .t-page h3, .t-page p { margin: 0; }
+.t-page button { font-family: inherit; }
+
+/* ═════════════ PAGE HEADER ═════════════ */
+.t-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 20px 28px;
+  flex-wrap: wrap;
+  margin-bottom: 28px;
+}
+.t-head-main { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.t-head h1 {
+  font-size: clamp(32px, 4.4vw, 56px);
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -.045em;
+  color: var(--heading-color, inherit);
+  overflow-wrap: anywhere;
+}
+.t-head h1 em { font-style: normal; color: var(--accent); }
+
+.t-eyebrow {
+  font-family: var(--t-mono);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.t-sub { font-size: 14px; line-height: 1.55; color: var(--t-muted); }
+.t-label {
+  margin-bottom: 8px !important;
+  font-family: var(--t-mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--t-muted);
+}
+
+.t-back {
+  display: inline-block;
+  margin-bottom: 18px;
+  font-family: var(--t-mono);
+  font-size: 12px;
+  letter-spacing: .06em;
+  text-decoration: none;
+  color: var(--t-muted);
+}
+.t-back:hover { color: var(--accent); }
+
+.t-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-family: var(--t-mono);
+  font-size: 11px;
+  font-weight: 500;
+  white-space: nowrap;
+  color: var(--t-muted);
+  background: var(--t-soft);
+  border: 1px solid var(--t-line);
+}
+
+/* ═════════════ MESSAGE ═════════════ */
+.t-msg {
+  margin-bottom: var(--t-gap);
+  padding: 12px 16px;
+  border-radius: 14px;
+  font-size: 14px;
+  line-height: 1.5;
+  background: var(--t-soft);
+  border: 1px solid var(--t-line);
+}
+
+/* ═════════════ CARDS ═════════════ */
+.t-card {
+  margin-bottom: var(--t-gap);
+  padding: 22px;
+  border-radius: var(--t-r);
+  background: var(--card-bg);
+  border: 1px solid var(--t-line);
+}
+.t-card h3 { margin-bottom: 14px; font-size: 16px; font-weight: 700; letter-spacing: -.01em; color: var(--heading-color, inherit); }
+.t-card-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+.t-card-head h3 { margin: 0; }
+
+.t-empty { text-align: center; padding: 36px 22px; color: var(--t-muted); font-size: 14px; line-height: 1.6; }
+.t-empty h2 { margin-bottom: 8px; font-size: 22px; font-weight: 700; letter-spacing: -.02em; color: var(--heading-color, inherit); }
+
+/* ═════════════ LAYOUT HELPERS ═════════════ */
+.t-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: var(--t-gap); }
+.t-grid .t-card { margin-bottom: 0; }
+
+.t-two { display: grid; grid-template-columns: 1fr 1fr; gap: var(--t-gap); margin-bottom: var(--t-gap); }
+.t-two .t-card { margin-bottom: 0; }
+
+.t-inline { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+/* ═════════════ CLASS CARD (class list) ═════════════ */
+.t-class { display: flex; flex-direction: column; gap: 18px; }
+.t-class-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.t-class-top h3 { margin: 0; font-size: 18px; overflow-wrap: anywhere; }
+
+.t-code {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px dashed color-mix(in srgb, var(--accent) 55%, transparent);
+  background: transparent;
+  color: var(--text-color);
+  font-family: var(--t-mono);
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: .2em;
+  cursor: pointer;
+}
+.t-code svg { flex-shrink: 0; color: var(--t-muted); }
+.t-code:hover { background: var(--t-soft); }
+.t-code:hover svg { color: var(--accent); }
+.t-code-inline { font-family: var(--t-mono); font-weight: 600; letter-spacing: .12em; color: var(--accent); }
+
+/* ═════════════ STAT TILES (class page) ═════════════
+   Markup is <b>number</b><span>label</span>; the label is shown above the number. */
+.t-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--t-gap); margin-bottom: var(--t-gap); }
+.t-stat {
+  display: flex;
+  flex-direction: column-reverse;
+  justify-content: flex-end;
+  gap: 10px;
+  min-height: 104px;
+  padding: 18px 20px;
+  border-radius: var(--t-r);
+  background: var(--card-bg);
+  border: 1px solid var(--t-line);
+}
+.t-stat b {
+  font-family: var(--t-mono);
+  font-size: clamp(26px, 2.4vw, 34px);
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: -.05em;
+  font-variant-numeric: tabular-nums;
+  color: var(--heading-color, inherit);
+}
+.t-stat span { font-size: 13px; line-height: 1.35; color: var(--t-muted); }
+.t-stat.warn { border-color: color-mix(in srgb, var(--t-amber) 45%, transparent); }
+.t-stat.warn b { color: var(--t-amber); }
+.t-stat.bad { border-color: color-mix(in srgb, var(--t-red) 45%, transparent); }
+.t-stat.bad b { color: var(--t-red); }
+
+/* ═════════════ TABS (class page) ═════════════ */
+.t-tabs {
+  display: flex;
+  gap: 4px;
+  width: max-content;
+  max-width: 100%;
+  margin-bottom: 22px;
+  padding: 4px;
+  overflow-x: auto;
+  border-radius: 999px;
+  background: var(--card-bg);
+  border: 1px solid var(--t-line);
+  scrollbar-width: none;
+}
+.t-tabs::-webkit-scrollbar { display: none; }
+.t-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  padding: 9px 18px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--t-muted);
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.t-tab:hover { color: var(--text-color); background: var(--t-soft); }
+.t-tab.on { background: var(--accent); color: #fff; }
+body.dark-mode .t-tab.on { color: #000; }
+.t-tab-count {
+  padding: 0 7px;
+  border-radius: 999px;
+  font-family: var(--t-mono);
+  font-size: 11px;
+  font-weight: 600;
+  background: color-mix(in srgb, currentColor 18%, transparent);
+}
+
+/* ═════════════ BUTTONS ═════════════ */
+.t-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 18px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+body.dark-mode .t-btn { color: #000; }
+.t-btn:hover:not(:disabled) { opacity: .88; }
+.t-btn:disabled { opacity: .45; cursor: default; }
+.t-btn:focus-visible, .t-tab:focus-visible, .t-code:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.t-ghost { background: transparent; color: var(--text-color); border-color: var(--t-line-strong); }
+body.dark-mode .t-ghost { color: var(--text-color); }
+.t-ghost:hover:not(:disabled) { opacity: 1; background: var(--t-soft); border-color: var(--accent); }
+
+.t-danger { background: var(--t-red); color: #fff; }
+body.dark-mode .t-danger { color: #fff; }
+.t-btn.t-ghost.t-danger { background: transparent; color: var(--t-red); border-color: color-mix(in srgb, var(--t-red) 40%, transparent); }
+.t-btn.t-ghost.t-danger:hover:not(:disabled) { background: color-mix(in srgb, var(--t-red) 8%, transparent); border-color: var(--t-red); }
+
+.t-sm { padding: 6px 12px; font-size: 13px; border-radius: 10px; }
+
+/* ═════════════ INPUTS ═════════════ */
+.t-inline input, .t-form input, .t-form select, .t-input {
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--t-line-strong);
+  background: var(--bg-color);
+  color: var(--text-color);
+  font: inherit;
+  font-size: 14px;
+}
+.t-inline input::placeholder, .t-form input::placeholder, .t-input::placeholder { color: var(--t-muted); opacity: .8; }
+.t-inline input:focus, .t-form input:focus, .t-form select:focus, .t-input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 15%, transparent);
+}
+
+/* ═════════════ LIST ROWS ═════════════ */
+.t-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px 14px;
+  flex-wrap: wrap;
+  padding: 12px 0;
+  border-top: 1px solid var(--t-line);
+  cursor: pointer;
+}
+.t-row:hover:not(.t-static) > b, .t-row:hover:not(.t-static) > span > b { color: var(--accent); }
+.t-static { cursor: default; }
+.t-row .t-sub { font-size: 13px; }
+
+/* ═════════════ TABLES ═════════════ */
+.t-scroll { overflow-x: auto; scrollbar-width: thin; scrollbar-color: var(--t-line-strong) transparent; }
+.t-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.t-table th {
+  padding: 10px 12px;
+  text-align: left;
+  white-space: nowrap;
+  font-family: var(--t-mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--t-muted);
+}
+.t-table td { padding: 12px; border-top: 1px solid var(--t-line); vertical-align: middle; }
 .t-table tbody tr { cursor: pointer; }
-.t-table tbody tr:hover { background: var(--glass-bg); }
+.t-table tbody tr:hover { background: var(--t-soft); }
 .t-plain tbody tr { cursor: default; }
-.badge { padding: 3px 10px; border-radius: 99px; font-size: 0.78rem; background: var(--glass-bg); }
-.badge.strong { background: #16a34a33; color: #16a34a; }
-.badge.developing { background: #f59e0b33; color: #d97706; }
-.badge.needs-work { background: #ef444433; color: #ef4444; }
-.t-dots { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
-.t-dot { width: 18px; height: 18px; border-radius: 50%; }
-.t-dot.ok { background: #16a34a; }
-.t-dot.bad { background: #ef4444; }
-@media (max-width: 720px) { .t-two { grid-template-columns: 1fr; } .t-head h1 { font-size: 1.4rem; } }
-/* ── step 3: insights, assignments, announcements ── */
-.t-bars { display: flex; align-items: flex-end; gap: 6px; height: 150px; padding-top: 18px; }
+
+/* ═════════════ BADGES ═════════════ */
+.t-page .badge {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  background: var(--t-soft);
+  border: 1px solid var(--t-line);
+}
+.t-page .badge.strong { color: var(--t-green); background: color-mix(in srgb, var(--t-green) 10%, transparent); border-color: color-mix(in srgb, var(--t-green) 32%, transparent); }
+.t-page .badge.developing { color: var(--t-amber); background: color-mix(in srgb, var(--t-amber) 10%, transparent); border-color: color-mix(in srgb, var(--t-amber) 32%, transparent); }
+.t-page .badge.needs-work { color: var(--t-red); background: color-mix(in srgb, var(--t-red) 10%, transparent); border-color: color-mix(in srgb, var(--t-red) 32%, transparent); }
+
+.t-up { color: var(--t-green); font-family: var(--t-mono); font-size: 13px; }
+.t-down { color: var(--t-red); font-family: var(--t-mono); font-size: 13px; }
+
+/* ═════════════ BAR CHARTS (plain divs, no animation) ═════════════ */
+.t-bars { display: flex; align-items: flex-end; gap: 6px; height: 170px; padding-top: 18px; }
 .t-bar-col { flex: 1; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; height: 100%; min-width: 0; }
-.t-bar { width: 100%; max-width: 28px; min-height: 2px; background: var(--accent); border-radius: 6px 6px 0 0; }
-.t-bar-alt { background: #16a34a; }
-.t-bar-num { font-size: 0.7rem; color: var(--subtext-color); height: 14px; }
-.t-bar-lbl { font-size: 0.7rem; color: var(--subtext-color); margin-top: 4px; }
-.t-up { color: #16a34a; }
-.t-down { color: #ef4444; }
-.t-static { cursor: default; align-items: center; }
-.t-form { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; align-items: center; }
-.t-form input, .t-form select { padding: 9px 12px; border-radius: 10px; border: 1px solid var(--glass-border); background: var(--bg-color); color: var(--text-color); }
+.t-bar { width: 100%; max-width: 30px; min-height: 2px; border-radius: 6px 6px 0 0; background: var(--accent); }
+.t-bar-alt { background: var(--t-green); }
+.t-bar-num { height: 16px; font-family: var(--t-mono); font-size: 11px; color: var(--t-muted); }
+.t-bar-lbl { margin-top: 6px; font-family: var(--t-mono); font-size: 11px; color: var(--t-muted); }
+
+/* ═════════════ ASSIGNMENTS ═════════════ */
+.t-form { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 18px; }
 .t-form input[type="text"], .t-form input:not([type]) { flex: 1; min-width: 200px; }
-.t-assign { margin-top: 10px; }
-.t-progress { height: 6px; border-radius: 6px; background: var(--glass-bg); overflow: hidden; }
-.t-progress div { height: 100%; background: #16a34a; }
-.t-level { padding: 8px 14px; border: 1px solid var(--glass-border); border-radius: 12px; font-size: 1.1rem; }
+.t-form label { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--t-muted); }
+
+.t-assign { padding: 4px 0 14px; }
+.t-assign + .t-assign { border-top: 1px solid var(--t-line); padding-top: 4px; }
+.t-assign .t-row { border-top: 0; }
+.t-progress { height: 4px; border-radius: 4px; background: var(--t-soft); overflow: hidden; }
+.t-progress div { height: 100%; border-radius: 4px; background: var(--t-green); }
+
+/* ═════════════ STUDENT PAGE ═════════════ */
+.t-levels { display: flex; flex-wrap: wrap; gap: 10px; }
+.t-level {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 10px 16px;
+  border-radius: 14px;
+  font-size: 14px;
+  background: var(--t-soft);
+  border: 1px solid var(--t-line);
+}
+.t-level b { font-family: var(--t-mono); font-size: 20px; font-weight: 600; letter-spacing: -.04em; color: var(--heading-color, inherit); }
+
+.t-dots { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+.t-dot { width: 16px; height: 16px; border-radius: 50%; }
+.t-dot.ok { background: var(--t-green); }
+.t-dot.bad { background: var(--t-red); }
+
+/* ═════════════ RESPONSIVE ═════════════ */
+@media (max-width: 960px) {
+  .t-two { grid-template-columns: minmax(0, 1fr); }
+  .t-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 720px) {
+  .t-head { align-items: flex-start; }
+  .t-head .t-inline, .t-head .t-inline input { width: 100%; }
+  .t-head .t-inline input { flex: 1 1 100%; }
+  .t-tabs { width: 100%; }
+  .t-card { padding: 18px 16px; }
+}
+@media (max-width: 480px) {
+  .t-stat { min-height: 92px; padding: 16px; }
+}

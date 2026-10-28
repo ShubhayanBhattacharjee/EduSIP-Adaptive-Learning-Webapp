@@ -1,68 +1,59 @@
 import API_URL from "../../config";
 import React, { useState } from "react";
-import Navbar from "../../shared/layout/Navbar";
-import Footer from "../../shared/layout/Footer";
+import { Link } from "react-router-dom";
+import "./auth.css";
 
 const ForgotPassword = () => {
   const [email, setEmail] = useState("");
   const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
-    const res = await fetch(`${API_URL}/auth/forgotpassword`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ email }),
-    });
-
-    const data = await res.json();
-    setMessage(data.message);
+    setMessage("");
+    setError("");
+    setBusy(true);
+    try {
+      const res = await fetch(`${API_URL}/auth/forgotpassword`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) setMessage(data.message || "If that email has an account, a reset link is on its way.");
+      else setError(data.message || "Could not send the reset link. Try again.");
+    } catch {
+      setError("Cannot reach the server. Check your connection and try again.");
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
-    <div className="page-content">
-      <Navbar />
+    <div className="au">
+           <div className="au-shell">
+        <p className="au-brand">EduSip</p>
+        <form className="au-card" onSubmit={handleSubmit}>
+          <h2 className="au-title">Reset your password</h2>
+          <p className="au-sub">Enter the email you signed up with and we will send you a reset link.</p>
 
-      <div className="auth-wrapper">
-        <div className="auth-bg"></div>
-        <div className="auth-card">
+          {error && <div className="au-error" role="alert">{error}</div>}
+          {message && <div className="au-info" role="status">{message}</div>}
 
-          <div className="left-panel">
-            <h1>EduSip</h1>
-            <p>
-              Reset your password securely.
-              <br />
-              We'll send you a reset link.
-            </p>
+          <div className="au-field">
+            <label className="au-label" htmlFor="email">Email</label>
+            <input className="au-input" id="email" type="email" autoComplete="email"
+              placeholder="you@example.com" value={email} onChange={(e) => setEmail(e.target.value)} required />
           </div>
 
-          <div className="right-panel">
-            <form onSubmit={handleSubmit}>
-              <h2>Forgot Password</h2>
+          <button type="submit" className="au-btn" disabled={busy}>
+            {busy ? "Sending..." : "Send reset link"}
+          </button>
 
-              <input
-                type="email"
-                placeholder="Enter email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
-
-              <button type="submit" className="login-btn">
-                Send Reset Link
-              </button>
-
-              {message && <p className="info-message">{message}</p>}
-            </form>
-          </div>
-
-        </div>
+          <p className="au-foot"><Link to="/login">Back to log in</Link></p>
+        </form>
       </div>
-
-      <Footer />
     </div>
   );
 };

@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams, Link } from "react-router-dom";
 import Navbar from "../../shared/layout/Navbar";
-import Footer from "../../shared/layout/Footer";
 import { classApi } from "../../services/classService";
 import ClassInsights from "./ClassInsights";
 import ClassAssignments from "./ClassAssignments";
@@ -56,7 +55,7 @@ const ClassView = () => {
 
   return (
     <>
-      <Navbar />
+      
       <div className="t-page">
         <Link to="/teacher" className="t-back">← All classes</Link>
 
@@ -144,7 +143,6 @@ const ClassView = () => {
           )}
         </div>
       </div>
-      <Footer />
     </>
   );
 };

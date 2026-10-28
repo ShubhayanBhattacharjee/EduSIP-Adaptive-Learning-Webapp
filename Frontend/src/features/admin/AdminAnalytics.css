@@ -1,179 +1,46 @@
-@import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap');
+/* ═════════════════════════════════════════════════════════════
+   Analytics page extras (the base look is AdminPages.css).
+   The three difficulty levels are one colour at three strengths: no colour mixing.
+   ═════════════════════════════════════════════════════════════ */
 
-/* ================= WRAPPER ================= */
-.analytics-wrapper {
-  display: flex;
-  justify-content: center;
-  align-items: flex-start;
-  padding: 12px 0 40px;
-  background: transparent;
-}
+/* card header: title on the left, legend on the right */
+.an-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 8px; }
+.an-head h3 { margin: 0; }
 
-/* ================= CARD ================= */
-.analytics-card {
-  margin-top: 250px;
+.an-legend { display: flex; gap: 16px; font-family: var(--ad-mono); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--ad-muted); }
+.an-legend span { display: inline-flex; align-items: center; gap: 7px; }
+.an-legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; }
+
+/* the three strengths of the accent colour (used by the legend and the bars) */
+.an-legend i.easy,   .an-split i.easy   { background: color-mix(in srgb, var(--accent) 30%, transparent); }
+.an-legend i.medium, .an-split i.medium { background: color-mix(in srgb, var(--accent) 62%, transparent); }
+.an-legend i.hard,   .an-split i.hard   { background: var(--accent); }
+
+/* table cells */
+.an-subject { font-weight: 700; text-transform: capitalize; white-space: nowrap; }
+.an-num { font-family: var(--ad-mono); font-size: 13px; font-variant-numeric: tabular-nums; }
+.an-mixcol { min-width: 180px; width: 34%; }
+.ap-table td.an-mixcol { vertical-align: middle; }
+
+/* difficulty mix bar: one thin split bar per subject, wipes in from the left */
+.an-split {
   display: flex;
-  width: min(900px, 96vw);
-  border-radius: 24px;
+  height: 10px;
+  gap: 2px;
   overflow: hidden;
-
-  /* Glassy — light */
-  background: rgba(255, 255, 255, 0.58);
-  backdrop-filter: blur(22px);
-  -webkit-backdrop-filter: blur(22px);
-  border: 1px solid rgba(255, 255, 255, 0.72);
-  box-shadow:
-    0 2px 0 rgba(255,255,255,0.9) inset,
-    0 16px 48px rgba(0,0,0,0.08);
+  border-radius: 999px;
+  background: var(--ad-soft);
+  animation: an-wipe 1s cubic-bezier(.2, .8, .2, 1) both;
+}
+.an-split i { display: block; height: 100%; min-width: 0; }
+.an-split i:first-child { border-radius: 999px 0 0 999px; }
+.an-split i:last-child { border-radius: 0 999px 999px 0; }
+@keyframes an-wipe {
+  from { clip-path: inset(0 100% 0 0); }
+  to   { clip-path: inset(0 0 0 0); }
 }
 
-body.dark-mode .analytics-card {
-  background: rgba(255, 255, 255, 0.035);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow:
-    0 1px 0 rgba(255,255,255,0.06) inset,
-    0 16px 48px rgba(0,0,0,0.45);
-}
-
-/* ================= LEFT PANEL ================= */
-.analytics-left-panel {
-  width: 32%;
-  background: var(--accent);
-  padding: 44px 32px;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 20px;
-  flex-shrink: 0;
-}
-
-.analytics-left-panel h2 {
-  font-family: 'DM Serif Display', serif;
-  font-size: 28px;
-  font-weight: 400;
-  color: #fff;
-  letter-spacing: -0.3px;
-  line-height: 1.2;
-  margin: 0;
-}
-
-/* Stat pills */
-.analytics-left-panel p {
-  font-family: 'DM Sans', sans-serif;
-  font-size: 13px;
-  font-weight: 500;
-  color: rgba(255,255,255,0.85);
-  margin: 0;
-  padding: 10px 14px;
-  border-radius: 10px;
-  background: rgba(255,255,255,0.15);
-  border: 1px solid rgba(255,255,255,0.2);
-  line-height: 1.5;
-}
-
-/* ================= RIGHT PANEL ================= */
-.analytics-right-panel {
-  width: 68%;
-  padding: 28px 28px 28px 28px;
-  display: flex;
-  flex-direction: column;
-  overflow-x: auto;
-  background: transparent;
-}
-
-/* ================= TABLE CONTAINER ================= */
-.table-container {
-  width: 100%;
-  overflow-x: auto;
-  border-radius: 14px;
-  border: 1px solid rgba(128,128,128,0.12);
-  overflow: hidden;
-}
-
-/* ================= TABLE ================= */
-.analytics-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-family: 'DM Sans', sans-serif;
-  font-size: 13px;
-}
-
-/* Header */
-.analytics-table thead tr {
-  background: rgba(128,128,128,0.05);
-  border-bottom: 1px solid rgba(128,128,128,0.12);
-}
-
-.analytics-table th {
-  padding: 14px 16px;
-  text-align: center;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--subtext-color);
-}
-
-/* Body */
-.analytics-table td {
-  padding: 13px 16px;
-  text-align: center;
-  color: var(--text-color);
-  border-bottom: 1px solid rgba(128,128,128,0.08);
-  font-weight: 500;
-}
-
-/* Subject column — slightly bolder */
-.analytics-table td:first-child {
-  font-weight: 600;
-  color: var(--text-color);
-  text-align: left;
-}
-
-.analytics-table th:first-child {
-  text-align: left;
-}
-
-/* Last row no border */
-.analytics-table tbody tr:last-child td {
-  border-bottom: none;
-}
-
-/* Row hover */
-.analytics-table tbody tr {
-  transition: background 0.15s ease;
-}
-
-.analytics-table tbody tr:hover {
-  background: rgba(255,77,109,0.05);
-}
-
-body.dark-mode .analytics-table tbody tr:hover {
-  background: rgba(56,189,248,0.05);
-}
-
-/* ================= RESPONSIVE ================= */
-@media (max-width: 768px) {
-  .analytics-card {
-    flex-direction: column;
-  }
-
-  .analytics-left-panel,
-  .analytics-right-panel {
-    width: 100%;
-  }
-
-  .analytics-left-panel {
-    padding: 28px 24px;
-  }
-
-  .analytics-right-panel {
-    padding: 20px 16px;
-  }
-
-  .analytics-table th,
-  .analytics-table td {
-    padding: 10px 10px;
-    font-size: 12px;
-  }
+/* small screens: hide the mix bar, the three numbers already say the same */
+@media (max-width: 720px) {
+  .an-mixcol { display: none; }
 }

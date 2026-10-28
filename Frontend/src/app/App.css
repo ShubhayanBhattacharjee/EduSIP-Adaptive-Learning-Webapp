@@ -6,18 +6,15 @@
   padding: 0;
   box-sizing: border-box;
 }
+html { scroll-padding-top: 88px; }   /* anchor jumps (Contact) stop below the navbar */
+html, body { min-height: 100%; }
+/* page background follows the theme on EVERY route (index.css is not imported anywhere) */
+body { background: var(--bg-color); color: var(--text-color); transition: background .4s, color .4s; }
+#root { min-height: 100dvh; display: flex; flex-direction: column; }
 
-html,
-body,
-#root,
-.App {
-  min-height: 100%;
-  width: 100%;
-  background-color: var(--bg-color); /* 🔥 FIX */
-  color: var(--text-color);
-}
-
-
+.app-shell { flex: 1; display: flex; flex-direction: column; min-height: 100dvh; }
+.app-main  { flex: 1 0 auto; display: flex; flex-direction: column; min-width: 0; }
+.app-main > * { flex: 1 0 auto; min-height: 0; }   /* page fills the gap, scrolls only if taller */
 /* ================= LIGHT MODE TOKENS ================= */
 :root {
   --bg-color: #ffffff;
@@ -158,7 +155,9 @@ body.dark-mode .floating-card:hover {
   display: flex;
   justify-content: center;
   align-items: center;
-  height: 100vh;
+  height: auto;
+  min-height: 50vh;
+  flex:1;
   font-size: 18px;
   color: var(--text-color);
   background: var(--bg-color);
@@ -191,3 +190,8 @@ body.dark-mode .floating-card:hover {
 body.dark-mode .cursor-dot {
   background-color: var(--ai-blue);
 }
+
+body.quiz-focus .navbar,
+body.quiz-focus .mobile-panel,
+body.quiz-focus .footer { display: none !important; }
+#root, .app-shell, .app-main { width: 100%; }

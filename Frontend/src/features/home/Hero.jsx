@@ -678,14 +678,18 @@ const Hero = () => {
           <span className="line"></span>
         </div>
 
-        <div className="testimonial-grid reveal">
-          {TESTIMONIALS.map((t, i) => (
-            <div className="testimonial glass" key={i}>
-              <img src={t.img} alt={t.name} />
-              <p>"{t.text}"</p>
-              <h4>{t.name}</h4>
-              <span className="testi-role">{t.role}</span>
-            </div>
+                <div className="tcards reveal">
+          {TESTIMONIALS.map((t) => (
+            <figure className="tcard" key={t.name}>
+              <blockquote>“{t.text}”</blockquote>
+              <figcaption>
+                <span className="tcard-av" aria-hidden="true">{t.name.trim().charAt(0)}</span>
+                <span>
+                  <span className="tcard-name">{t.name}</span>
+                  <span className="tcard-role">{t.role}</span>
+                </span>
+              </figcaption>
+            </figure>
           ))}
         </div>
       </section>

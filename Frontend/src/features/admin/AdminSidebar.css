@@ -1,94 +1,162 @@
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&display=swap');
-
-/* ================= SIDEBAR ================= */
-.admin-sidebar {
-  width: 200px;
+/* ═════════════ SIDEBAR ═════════════ */
+.ad-side {
+  position: sticky;
+  top: calc(var(--ad-nav-h) + 24px);
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  padding: 16px 12px;
-  position: fixed;
-  top: 50%;
-  transform: translateY(-50%);
-  left: 28px;
-  border-radius: 18px;
-  z-index: 10;
-  margin-left: 40px;
-  /* Glassy — light */
-  background: rgba(255, 255, 255, 0.55);
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
-  border: 1px solid rgba(255, 255, 255, 0.72);
-  box-shadow:
-    0 2px 0 rgba(255,255,255,0.9) inset,
-    0 8px 32px rgba(0,0,0,0.07);
+  gap: 24px;
+  max-height: calc(100vh - var(--ad-nav-h) - 48px);
+  overflow-y: auto;
+  padding-right: 4px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--ad-line-strong) transparent;
 }
 
-body.dark-mode .admin-sidebar {
-  background: rgba(255, 255, 255, 0.035);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow:
-    0 1px 0 rgba(255,255,255,0.06) inset,
-    0 8px 32px rgba(0,0,0,0.4);
+/* ── who is signed in ── */
+.ad-me {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  padding: 0 6px;
 }
-
-/* ================= LINKS ================= */
-.admin-sidebar a {
-  font-family: 'DM Sans', sans-serif;
-  font-size: 13px;
+.ad-me-av {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent);
+  color: var(--accent);
+  font-family: var(--ad-mono);
+  font-size: 15px;
   font-weight: 600;
-  letter-spacing: 0.02em;
+}
+.ad-me-txt { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.ad-me-txt b {
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ad-role {
+  align-self: flex-start;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-family: var(--ad-mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--ad-muted);
+  background: var(--ad-soft);
+  border: 1px solid var(--ad-line);
+}
+.ad-role.super {
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 35%, transparent);
+}
+
+/* ── groups ── */
+.ad-menu { display: flex; flex-direction: column; gap: 20px; }
+.ad-group { display: flex; flex-direction: column; gap: 2px; }
+.ad-group-title {
+  margin: 0 0 6px 14px;
+  font-family: var(--ad-mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--ad-muted);
+  opacity: .8;
+}
+
+/* ── links ── */
+.ad-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: 12px;
   text-decoration: none;
-  padding: 11px 16px;
-  border-radius: 10px;
-  text-align: left;
-  display: block;
-  transition: all 0.2s ease;
-
-  background: transparent;
-  border: 1.5px solid transparent;
-  color: var(--subtext-color);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ad-muted);
+  transition: background .18s, color .18s;
 }
-
-/* Hover */
-.admin-sidebar a:hover {
-  background: rgba(128,128,128,0.07);
-  border-color: rgba(128,128,128,0.15);
-  color: var(--text-color);
-  transform: translateX(2px);
-}
-
-/* Active */
-.admin-sidebar a.active {
+.ad-item svg { flex-shrink: 0; transition: color .18s; }
+.ad-item-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ad-item:hover { color: var(--text-color); background: var(--ad-soft); }
+.ad-item.on { color: var(--text-color); background: var(--ad-soft); }
+.ad-item.on svg { color: var(--accent); }
+.ad-item.on::before {
+  content: "";
+  position: absolute;
+  left: -12px;
+  top: 24%;
+  bottom: 24%;
+  width: 3px;
+  border-radius: 3px;
   background: var(--accent);
-  border-color: var(--accent);
-  color: #fff;
-  box-shadow: 0 4px 14px rgba(255,77,109,0.3);
+  box-shadow: 0 0 12px var(--accent);
+}
+.ad-item:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* little count: questions to review, teachers to approve */
+.ad-badge {
+  flex-shrink: 0;
+  min-width: 22px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  text-align: center;
+  font-family: var(--ad-mono);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
 }
 
-body.dark-mode .admin-sidebar a.active {
-  color: #000;
-  box-shadow: 0 4px 14px rgba(56,189,248,0.25);
-}
+/* ═════════════ SMALL SCREENS: sticky tab bar under the site navbar ═════════════ */
+@media (max-width: 1000px) {
+  .ad-side {
+    position: sticky;
+    top: var(--ad-nav-h);
+    z-index: 20;
+    max-height: none;
+    overflow: visible;
+    flex-direction: row;
+    align-items: center;
+    gap: 0;
+    margin: 0 calc(-1 * var(--ad-pad)) 24px;
+    padding: 10px var(--ad-pad);
+    background: color-mix(in srgb, var(--bg-color) 86%, transparent);
+    -webkit-backdrop-filter: blur(14px);
+    backdrop-filter: blur(14px);
+    border-bottom: 1px solid var(--ad-line);
+  }
+  .ad-me { display: none; }
 
-body.dark-mode .admin-sidebar a:hover:not(.active) {
-  background: rgba(255,255,255,0.05);
-  border-color: rgba(255,255,255,0.1);
-  color: var(--text-color);
-}
-/* ── step 4: more links, badges, small screens ── */
-.admin-sidebar { max-height: 86vh; overflow-y: auto; }
-.admin-badge { margin-left: 8px; background: #ef4444; color: #fff; border-radius: 99px; padding: 1px 7px; font-size: 11px; font-weight: 700; }
-@media (max-width: 1100px) {
-  .admin-sidebar { position: static; transform: none; width: auto; margin: 0 0 16px; flex-direction: row; flex-wrap: wrap; max-height: none; }
-}
+  /* one scrollable row; the group headings disappear, a hairline separates groups */
+  .ad-menu {
+    flex-direction: row;
+    align-items: center;
+    gap: 0;
+    width: 100%;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .ad-menu::-webkit-scrollbar { display: none; }
+  .ad-group { flex-direction: row; gap: 4px; flex-shrink: 0; }
+  .ad-group + .ad-group { margin-left: 10px; padding-left: 10px; border-left: 1px solid var(--ad-line); }
+  .ad-group-title { display: none; }
 
-/* ── step 5: super admin section ── */
-.admin-sidebar-label {
-  margin: 10px 6px 2px; padding-top: 10px; border-top: 1px solid rgba(128,128,128,0.25);
-  font-family: 'DM Sans', sans-serif; font-size: 11px; font-weight: 700; letter-spacing: 0.08em;
-  text-transform: uppercase; color: var(--subtext-color);
-}
-@media (max-width: 1100px) {
-  .admin-sidebar-label { width: 100%; border-top: 1px solid rgba(128,128,128,0.25); margin: 6px 0 0; }
+  .ad-item { flex-shrink: 0; padding: 9px 14px; white-space: nowrap; }
+  .ad-item.on::before { left: 14px; right: 14px; top: auto; bottom: 2px; width: auto; height: 2px; box-shadow: none; }
 }

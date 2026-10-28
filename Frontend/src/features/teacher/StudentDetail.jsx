@@ -1,7 +1,5 @@
 import React, { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import Navbar from "../../shared/layout/Navbar";
-import Footer from "../../shared/layout/Footer";
 import { classApi } from "../../services/classService";
 import { ago } from "./ClassView";
 import "./Teacher.css";
@@ -15,11 +13,10 @@ const StudentDetail = () => {
     classApi.student(id, sid).then(setD).catch((e) => setMsg(e.message));
   }, [id, sid]);
 
-  if (!d) return <><Navbar /><div className="t-page"><p className="t-sub">{msg || "Loading..."}</p></div></>;
+  if (!d) return <><div className="t-page"><p className="t-sub">{msg || "Loading..."}</p></div></>;
 
   return (
     <>
-      <Navbar />
       <div className="t-page">
         <Link to={`/teacher/class/${id}`} className="t-back">← Back to class</Link>
 
@@ -118,7 +115,6 @@ const StudentDetail = () => {
           <p className="t-sub">Green = correct without hint. Hover a dot for details.</p>
         </div>
       </div>
-      <Footer />
     </>
   );
 };

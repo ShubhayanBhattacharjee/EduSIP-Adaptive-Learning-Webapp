@@ -1,10 +1,7 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
+import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "../../context/AuthContext";
-import Navbar from "../../shared/layout/Navbar";
-import Footer from "../../shared/layout/Footer";
-import QuestionCard from "./QuestionCard";
-import ProgressBar from "./ProgressBar";
 import QuizComplete from "./QuizComplete";
 import IdentityVerification from "../anticheat/components/IdentityVerification";
 import ProctoringWarning from "../anticheat/components/ProctoringWarning";
@@ -16,167 +13,159 @@ import SpeakingWarning from "../anticheat/components/SpeakingWarning";
 import useObjectDetection from "../anticheat/hooks/useObjectDetection";
 import useVoiceDetection from "../anticheat/hooks/useVoiceDetection";
 import useProctoring from "../anticheat/hooks/useProctoring";
-import { AnimatePresence } from "framer-motion";
 import quizApi from "../../services/quizApi";
 import "./Quiz.css";
 
-/* ── Subject icon colour palettes ── */
-const SUBJECT_META = {
-  default: { emoji: "📘", bg: "#6366f1", light: "rgba(99,102,241,0.15)" },
-  mathematics: { emoji: "➗", bg: "#f59e0b", light: "rgba(245,158,11,0.15)" },
-  science: { emoji: "🔬", bg: "#10b981", light: "rgba(16,185,129,0.15)" },
-  physics: { emoji: "⚡", bg: "#3b82f6", light: "rgba(59,130,246,0.15)" },
-  chemistry: { emoji: "🧪", bg: "#8b5cf6", light: "rgba(139,92,246,0.15)" },
-  biology: { emoji: "🧬", bg: "#22c55e", light: "rgba(34,197,94,0.15)" },
-  history: { emoji: "🏛️", bg: "#d97706", light: "rgba(217,119,6,0.15)" },
-  geography: { emoji: "🌍", bg: "#06b6d4", light: "rgba(6,182,212,0.15)" },
-  english: { emoji: "📝", bg: "#ec4899", light: "rgba(236,72,153,0.15)" },
-  computer: { emoji: "💻", bg: "#6366f1", light: "rgba(99,102,241,0.15)" },
-  programming: { emoji: "⌨️", bg: "#6366f1", light: "rgba(99,102,241,0.15)" },
-  economics: { emoji: "📊", bg: "#f97316", light: "rgba(249,115,22,0.15)" },
-  psychology: { emoji: "🧠", bg: "#a855f7", light: "rgba(168,85,247,0.15)" },
+/* ── subject emoji (kept tiny, just a visual cue) ── */
+const SUBJECT_EMOJI = {
+  mathematics: "➗", science: "🔬", physics: "⚡", chemistry: "🧪",
+  biology: "🧬", history: "🏛️", geography: "🌍", english: "📝",
+  computer: "💻", programming: "⌨️", economics: "📊", psychology: "🧠",
+};
+const emojiFor = (name = "") => {
+  const key = String(name).toLowerCase();
+  const hit = Object.keys(SUBJECT_EMOJI).find((k) => key.includes(k));
+  return hit ? SUBJECT_EMOJI[hit] : "📘";
 };
 
-const getSubjectMeta = (name = "") => {
-  if (!name || typeof name !== 'string') {
-    return SUBJECT_META.default;
-  }
-  const key = name.toLowerCase();
-  for (const k of Object.keys(SUBJECT_META)) {
-    if (key.includes(k)) return SUBJECT_META[k];
-  }
-  return SUBJECT_META.default;
-};
+const COUNTS = [5, 10, 15, 20, 30];
+const LIMITS = [0, 10, 15, 20, 30, 45, 60];
+const LETTERS = ["A", "B", "C", "D", "E", "F"];
+
+const fmt = (sec) => `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, "0")}`;
+
+/* ── small reusable pill group ── */
+const Pills = ({ items, value, onChange, render }) => (
+  <div className="qx-pills">
+    {items.map((it) => (
+      <button
+        key={it}
+        type="button"
+        className={`qx-pill ${value === it ? "on" : ""}`}
+        onClick={() => onChange(it)}
+      >
+        {render ? render(it) : it}
+      </button>
+    ))}
+  </div>
+);
 
 const Quiz = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Webcam toggle state (default: disabled, will be set based on verification)
-  const [webcamEnabled, setWebcamEnabled] = useState(false);
-  const [, setVerificationCompleted] = useState(false);
-  const [, setVerificationSkipped] = useState(false);
-  
-  // Voice detection is always enabled when quiz starts
-  
-  // Speaking warning state
-  const [speakingWarning, setSpeakingWarning] = useState(null);
-  const [, setClearSpeakingWarning] = useState(false);
-
+  /* ── setup state ── */
   const [subjects, setSubjects] = useState([]);
   const [topics, setTopics] = useState([]);
   const [selectedSubject, setSelectedSubject] = useState("");
   const [selectedTopic, setSelectedTopic] = useState("");
-  const [questions, setQuestions] = useState([]);
-  const [sessionId, setSessionId] = useState(null);   // the server owns the quiz session
-  const [total, setTotal] = useState(10);             // questions in this quiz (the server decides)
-  const [hints, setHints] = useState([]);              // hint texts for the current question (up to 3, from the server)
-  const [hintsLeft, setHintsLeft] = useState(3);
-  const [mode, setMode] = useState("practice");        // practice (one topic) | level (whole subject)
-  const [count, setCount] = useState(10);              // questions wanted
-  const [minutes, setMinutes] = useState(0);           // 0 = no time limit
-  const [target, setTarget] = useState(null);          // wanted chance of success, set by the study plan
-  const [secondsLeft, setSecondsLeft] = useState(null);
-  const [feedback, setFeedback] = useState(null);      // difficulty message after each answer
-  const [yourLevel, setYourLevel] = useState(null);
-  const [resumeInfo, setResumeInfo] = useState(null);  // an unfinished quiz the student can continue
-  const [verifyFor, setVerifyFor] = useState("start"); // what the identity check unlocks: start | resume
+  const [mode, setMode] = useState("practice"); // practice | level
+  const [count, setCount] = useState(10);
+  const [minutes, setMinutes] = useState(0);
+  const [target, setTarget] = useState(null);
+  const [resumeInfo, setResumeInfo] = useState(null);
   const [startError, setStartError] = useState("");
-  const pendingTopic = React.useRef("");
-  const finishing = React.useRef(false);
-  const [remedial, setRemedial] = useState(null);     // "go back to <topic> first" advice
   const [loadingQuestions, setLoadingQuestions] = useState(false);
-  const [quizStarted, setQuizStarted] = useState(false);
-  const [currentQuestion, setCurrentQuestion] = useState(1);
-  const [timer, setTimer] = useState(0);
-  const [difficulty, setDifficulty] = useState("MEDIUM");
-  const [selectedOption, setSelectedOption] = useState(null);
-  const [quizCompleted, setQuizCompleted] = useState(false);
-  const [isTransitioning, setIsTransitioning] = useState(false);
-  const [showHint, setShowHint] = useState(false);
-  const [quizStats, setQuizStats] = useState({
-    totalQuestions: 0,
-    correctAnswers: 0,
-    totalTime: 0,
-    accuracy: 0,
-  });
-  const [quizReview, setQuizReview] = useState(null);
   const [showIdentityVerification, setShowIdentityVerification] = useState(false);
-  const [, setVerificationData] = useState(null);
+  const [verifyFor, setVerifyFor] = useState("start"); // start | resume
+  const pendingTopic = useRef("");
 
-  // Initialize proctoring - active only when quiz is started and not completed
-  const { 
-    warning: proctoringWarning, 
-    violationCount: proctoringViolationCount, 
-    shouldTerminate: shouldTerminateProctoring, 
-    clearWarning: clearProctoringWarning, 
-    stopProctoring, 
-    markQuizCompleted: markProctoringCompleted 
-  } = useProctoring(
-    quizStarted && !quizCompleted
-  );
+  /* ── quiz state ── */
+  const [quizStarted, setQuizStarted] = useState(false);
+  const [quizCompleted, setQuizCompleted] = useState(false);
+  const [questions, setQuestions] = useState([]);
+  const [sessionId, setSessionId] = useState(null);
+  const [total, setTotal] = useState(10);
+  const [currentQuestion, setCurrentQuestion] = useState(1);
+  const [selectedOption, setSelectedOption] = useState(null);
+  const [isTransitioning, setIsTransitioning] = useState(false);
+  const [hints, setHints] = useState([]);
+  const [hintsLeft, setHintsLeft] = useState(3);
+  const [showHint, setShowHint] = useState(false);
+  const [timer, setTimer] = useState(0);
+  const [secondsLeft, setSecondsLeft] = useState(null);
+  const [feedback, setFeedback] = useState(null);
+  const [remedial, setRemedial] = useState(null);
+  const [notice, setNotice] = useState("");
+  const [quizStats, setQuizStats] = useState({ totalQuestions: 0, correctAnswers: 0, totalTime: 0, accuracy: 0 });
+  const [quizReview, setQuizReview] = useState(null);
+  const finishing = useRef(false);
 
-  // Initialize object detection - active only when quiz is started, webcam enabled, and not completed
+  /* ── proctoring ── */
+  const [webcamEnabled, setWebcamEnabled] = useState(false);
+  const [speakingWarning, setSpeakingWarning] = useState(null);
+  const [showExit, setShowExit] = useState(false);
+  const {
+    warning: proctoringWarning,
+    violationCount: proctoringViolationCount,
+    shouldTerminate,
+    clearWarning: clearProctoringWarning,
+    stopProctoring,
+    markQuizCompleted: markProctoringCompleted,
+  } = useProctoring(quizStarted && !quizCompleted);
+
   const {
     detections,
     violations,
     isInitialized: detectionReady,
     isDetecting,
     videoRef: detectionVideoRef,
-    error: detectionError
   } = useObjectDetection(quizStarted && webcamEnabled && !quizCompleted);
 
-  // Initialize voice detection - always active when quiz is started and not completed
   const {
     isInitialized: voiceReady,
     isDetecting: voiceDetecting,
     isSpeaking,
     violations: voiceViolations,
     error: voiceError,
-    isLoading: voiceLoading
+    isLoading: voiceLoading,
   } = useVoiceDetection(quizStarted && !quizCompleted);
 
-  // Calculate total violations (proctoring + object detection + voice detection)
   const totalViolationCount = proctoringViolationCount + violations.length + voiceViolations.length;
-  const shouldTerminate = shouldTerminateProctoring;
 
-  // Handle speaking warnings
   useEffect(() => {
     if (voiceViolations.length > 0) {
-      const latestViolation = voiceViolations[voiceViolations.length - 1];
-      // Only show warning if it's a new violation (different from current)
-      if (!speakingWarning || speakingWarning.id !== latestViolation.id) {
-        setSpeakingWarning(latestViolation);
-        setClearSpeakingWarning(false);
-      }
+      const latest = voiceViolations[voiceViolations.length - 1];
+      if (!speakingWarning || speakingWarning.id !== latest.id) setSpeakingWarning(latest);
     }
-    }, [voiceViolations, speakingWarning, setClearSpeakingWarning]);
+  }, [voiceViolations, speakingWarning]);
 
-  const clearSpeakingWarningHandler = () => {
-    setClearSpeakingWarning(true);
-    setSpeakingWarning(null);
-  };
-
-  // Stop proctoring when navigating away from quiz page
   useEffect(() => {
-    if (!location.pathname.includes('/quiz') && quizStarted) {
-      console.log('User navigated away from quiz page - stopping proctoring');
-      stopProctoring();
-    }
+    if (!location.pathname.includes("/quiz") && quizStarted) stopProctoring();
   }, [location.pathname, quizStarted, stopProctoring]);
 
+  useEffect(() => {
+    if (quizCompleted) stopProctoring();
+  }, [quizCompleted, stopProctoring]);
+
+  /* ── page scrolls inside the shell now, so start each screen / question at the top ── */
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "auto" });
+  }, [quizStarted, quizCompleted, currentQuestion]);
+    /* hide navbar + footer while the test is running */
+  useEffect(() => {
+    const on = quizStarted && !quizCompleted;
+    document.body.classList.toggle("quiz-focus", on);
+    return () => document.body.classList.remove("quiz-focus");
+  }, [quizStarted, quizCompleted]);
+  /* ── guards & initial data ── */
   useEffect(() => {
     if (!user) navigate("/login");
   }, [user, navigate]);
 
-  /* ── fetch subjects, and look for an unfinished quiz ── */
+  useEffect(() => {
+    quizApi.placementStatus()
+      .then((d) => { if (!d.placementDone) navigate("/placement", { replace: true }); })
+      .catch(() => {});
+  }, [navigate]);
+
   useEffect(() => {
     quizApi.subjects().then((d) => setSubjects(d.subjects || [])).catch(console.error);
     quizApi.active().then((d) => setResumeInfo(d.active || null)).catch(() => {});
   }, []);
 
-  /* ── arrived from "Start here" or the study plan ── */
+  /* ── arrived from "Start here" / study plan ── */
   useEffect(() => {
     const st = location.state;
     if (st && st.subject) {
@@ -189,7 +178,6 @@ const Quiz = () => {
     }
   }, [location.state]);
 
-  /* ── fetch topics on subject select ── */
   useEffect(() => {
     if (!selectedSubject) return;
     quizApi.topics(selectedSubject)
@@ -204,12 +192,20 @@ const Quiz = () => {
       .catch(console.error);
   }, [selectedSubject]);
 
-  /* ── start quiz ── */
+  /* ── start / resume ── */
+  const readyToStart =
+    (mode === "practice" && selectedSubject && selectedTopic) ||
+    (mode === "level" && selectedSubject);
+
   const startQuiz = () => {
-    if (!selectedSubject) return alert("Please select a subject");
-    if (mode === "practice" && !selectedTopic) return alert("Please select a topic");
+    if (!readyToStart) return;
     setStartError("");
     setVerifyFor("start");
+    setShowIdentityVerification(true);
+  };
+
+  const askResume = () => {
+    setVerifyFor("resume");
     setShowIdentityVerification(true);
   };
 
@@ -220,10 +216,10 @@ const Quiz = () => {
     setSelectedOption(null);
     setFeedback(null);
     setRemedial(null);
+    setNotice("");
     finishing.current = false;
   };
 
-  /* ── start the quiz after the identity check ── */
   const launchQuiz = async () => {
     setLoadingQuestions(true);
     try {
@@ -236,13 +232,11 @@ const Quiz = () => {
       setSessionId(data.sessionId);
       setTotal(data.total || count);
       setSecondsLeft(data.minutes ? data.minutes * 60 : null);
-      setYourLevel(null);
       setCurrentQuestion(1);
       setQuestions(data.questions);
       setQuizStarted(true);
     } catch (err) {
       if (err.code === "PLACEMENT_REQUIRED") {
-        alert(err.message);
         navigate("/placement");
       } else {
         setStartError(err.message || "Could not start the quiz");
@@ -250,12 +244,6 @@ const Quiz = () => {
     } finally {
       setLoadingQuestions(false);
     }
-  };
-
-  /* ── continue an unfinished quiz ── */
-  const askResume = () => {
-    setVerifyFor("resume");
-    setShowIdentityVerification(true);
   };
 
   const resumeQuiz = () => {
@@ -275,62 +263,29 @@ const Quiz = () => {
     setResumeInfo(null);
   };
 
-  // the question on screen is always the newest one the server sent
-  const currentQ = questions[questions.length - 1] || {};
-
-  /* ── handle verification complete ── */
   const handleVerificationComplete = (data) => {
-    setVerificationData(data);
     setShowIdentityVerification(false);
-
-    if (data && (data.userPhoto || data.idPhoto)) {
-      setWebcamEnabled(true);
-      setVerificationCompleted(true);
-      setVerificationSkipped(false);
-    } else {
-      setWebcamEnabled(false);
-      setVerificationCompleted(false);
-      setVerificationSkipped(true);
-    }
-
+    setWebcamEnabled(!!(data && (data.userPhoto || data.idPhoto)));
     if (verifyFor === "resume") resumeQuiz();
     else launchQuiz();
   };
 
-  /* ── handle verification cancel ── */
-  const handleVerificationCancel = () => {
-    setShowIdentityVerification(false);
-    setVerificationData(null);
-  };
+  const currentQ = questions[questions.length - 1] || {};
+  const difficulty = (currentQ.difficulty || "").toLowerCase();
 
-  // Stop proctoring when quiz is completed
-  useEffect(() => {
-    if (quizCompleted) {
-      stopProctoring();
-    }
-  }, [quizCompleted, stopProctoring]);
-
-  useEffect(() => {
-    if (questions.length > 0) {
-      const q = questions[questions.length - 1];
-      if (q?.difficulty) setDifficulty(q.difficulty.toUpperCase());
-    }
-  }, [questions]);
-
-  // seconds spent on this question
+  /* ── timers ── */
   useEffect(() => {
     if (!quizStarted || quizCompleted || isTransitioning) return;
     setTimer(0);
-    const interval = setInterval(() => setTimer((p) => p + 1), 1000);
-    return () => clearInterval(interval);
+    const id = setInterval(() => setTimer((p) => p + 1), 1000);
+    return () => clearInterval(id);
   }, [currentQuestion, quizStarted, quizCompleted, isTransitioning]);
 
-  // whole-quiz countdown (only when the student chose a time limit)
   const hasLimit = secondsLeft !== null;
   useEffect(() => {
     if (!quizStarted || quizCompleted || !hasLimit) return;
-    const interval = setInterval(() => setSecondsLeft((p) => (p === null ? p : Math.max(p - 1, 0))), 1000);
-    return () => clearInterval(interval);
+    const id = setInterval(() => setSecondsLeft((p) => (p === null ? p : Math.max(p - 1, 0))), 1000);
+    return () => clearInterval(id);
   }, [quizStarted, quizCompleted, hasLimit]);
 
   useEffect(() => {
@@ -339,7 +294,7 @@ const Quiz = () => {
     setHints([]);
   }, [currentQuestion]);
 
-  /* ── finish: ask the server for the result of this session ── */
+  /* ── finish ── */
   const finishNow = async () => {
     if (finishing.current) return;
     finishing.current = true;
@@ -351,13 +306,13 @@ const Quiz = () => {
       markProctoringCompleted();
     } catch (err) {
       finishing.current = false;
-      if (err.status === 400) {                  // nothing was answered before the time ran out
-        alert("Time is up and no answers were saved.");
+      if (err.status === 400) {
+        setNotice("Time is up and no answers were saved.");
         setQuizStarted(false);
         setQuestions([]);
         setSecondsLeft(null);
       } else {
-        alert(err.message || "Could not finish the quiz. Try again.");
+        setNotice(err.message || "Could not finish the quiz. Try again.");
       }
     } finally {
       setIsTransitioning(false);
@@ -369,7 +324,7 @@ const Quiz = () => {
     // eslint-disable-next-line
   }, [secondsLeft]);
 
-  /* ── hint: the server counts it and sends the text (3 levels) ── */
+  /* ── hints ── */
   const fetchHint = async () => {
     try {
       const data = await quizApi.hint({ questionId: currentQ._id, sessionId });
@@ -377,23 +332,21 @@ const Quiz = () => {
       setHintsLeft(data.hintsLeft);
       setShowHint(true);
     } catch (err) {
-      alert(err.message || "No more hints for this question");
+      setNotice(err.message || "No more hints for this question");
     }
   };
 
   const handleHint = () => {
-    if (hints.length > 0) {
-      setShowHint((s) => !s);               // already fetched: just show or hide
-      return;
-    }
+    if (hints.length > 0) return setShowHint((s) => !s);
     if (hintsLeft > 0) fetchHint();
-    else alert("You have used all hints for this question.");
+    else setNotice("You have used all hints for this question.");
   };
 
   /* ── answer ── */
-  const handleNextQuestion = async () => {
+  const handleNext = useCallback(async () => {
     if (selectedOption === null || isTransitioning) return;
     setIsTransitioning(true);
+    setNotice("");
 
     let data;
     try {
@@ -404,16 +357,14 @@ const Quiz = () => {
         hintUsed: hints.length > 0,
       });
     } catch (err) {
-      alert(err.message || "Could not save your answer. Please try again.");
+      setNotice(err.message || "Could not save your answer. Please try again.");
       setIsTransitioning(false);
       return;
     }
 
     setRemedial(data.remedial || null);
     setFeedback(data.feedback || null);
-    if (data.feedback && data.feedback.yourLevel != null) setYourLevel(data.feedback.yourLevel);
 
-    // The server picked the next question from this answer: add it and move on.
     if (!data.done && data.nextQuestion) {
       setQuestions((prev) => [...prev, data.nextQuestion]);
       setHintsLeft(3);
@@ -423,353 +374,358 @@ const Quiz = () => {
       }, 300);
       return;
     }
-
     await finishNow();
+    // eslint-disable-next-line
+  }, [selectedOption, isTransitioning, currentQ, sessionId, hints]);
+
+  /* ── keyboard shortcuts ── */
+  useEffect(() => {
+    if (!quizStarted || quizCompleted) return;
+    const onKey = (e) => {
+      if (isTransitioning || showExit || e.metaKey || e.ctrlKey || e.altKey) return;
+      const k = e.key.toLowerCase();
+      const n = currentQ.options?.length || 0;
+      const byNum = parseInt(k, 10);
+      const byLetter = "abcdef".indexOf(k);
+      if (byNum >= 1 && byNum <= n) setSelectedOption(byNum - 1);
+      else if (k.length === 1 && byLetter >= 0 && byLetter < n) setSelectedOption(byLetter);
+      else if (k === "h") handleHint();
+      else if (k === "enter") handleNext();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  });
+
+    const exitQuiz = () => setShowExit(true);
+
+  const confirmExit = async () => {
+    markProctoringCompleted();   // exiting fullscreen is no longer a violation
+    stopProctoring();
+    if (document.fullscreenElement) {
+      try { await document.exitFullscreen(); } catch (e) { /* ignore */ }
+    }
+    navigate("/dashboard");
   };
 
-  const fmt = (sec) => `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, "0")}`;
+  const restart = () => {
+    setQuizStarted(false);
+    setQuizCompleted(false);
+    setQuestions([]);
+    setCurrentQuestion(1);
+    setSelectedSubject("");
+    setSelectedTopic("");
+    setQuizStats({ totalQuestions: 0, correctAnswers: 0, totalTime: 0, accuracy: 0 });
+    setQuizReview(null);
+    setSessionId(null);
+    setSecondsLeft(null);
+    setFeedback(null);
+    setStartError("");
+    quizApi.active().then((d) => setResumeInfo(d.active || null)).catch(() => {});
+  };
 
   /* ================================================================
-     UI — SUBJECT / TOPIC SELECTION
+     SETUP SCREEN
      ================================================================ */
   if (!quizStarted)
     return (
       <>
-        <Navbar />
-        <div className="quiz-page">
-          <main className="main-content">
-            <div className="subject-select-wrapper">
-              {/* Page heading */}
-              <div>
-                <h1
-                  className="subject-page-title"
-                  style={{ fontFamily: "DM Sans, sans-serif" , fontWeight: "Bold"}}
-                >
-                  Start a Quiz
-                </h1>
+        <div className="qx qx--setup-page">
+          <main className="qx-setup">
+            <header className="qx-head">
+              <h1>Start a quiz</h1>
+              <p>Choose what to practise. The difficulty adapts as you answer.</p>
+            </header>
 
-                <p className="subject-page-subtitle">
-                  Pick a subject, then choose a topic to begin.
+            {resumeInfo && (
+              <div className="qx-resume">
+                <p>
+                  <b>{resumeInfo.topic || resumeInfo.subject}</b> · {resumeInfo.answered}/{resumeInfo.total} answered
                 </p>
+                <button type="button" className="qx-btn qx-btn--sm" onClick={askResume}>Continue</button>
               </div>
-              {resumeInfo && (
-                <div className="qz-resume">
-                  <span>You have an unfinished {resumeInfo.mode === "level" ? "level test" : "quiz"} in <b>{resumeInfo.topic || resumeInfo.subject}</b> ({resumeInfo.answered} of {resumeInfo.total} answered).</span>
-                  <button className="start-quiz-btn" onClick={askResume}>Continue →</button>
-                </div>
-              )}
+            )}
 
-              {/* ── What kind of quiz ── */}
-              <div className="qz-options">
-                <div className="qz-seg">
-                  <button className={mode === "practice" ? "on" : ""} onClick={() => setMode("practice")}>Practice a topic</button>
-                  <button className={mode === "level" ? "on" : ""} onClick={() => setMode("level")}>Level test (whole subject)</button>
-                </div>
-                <label className="qz-field">Questions
-                  <select value={count} onChange={(e) => setCount(Number(e.target.value))}>
-                    {[5, 10, 15, 20, 30].map((n) => <option key={n} value={n}>{n}</option>)}
-                  </select>
-                </label>
-                <label className="qz-field">Time limit
-                  <select value={minutes} onChange={(e) => setMinutes(Number(e.target.value))}>
-                    <option value={0}>None</option>
-                    {[10, 15, 20, 30, 45, 60].map((n) => <option key={n} value={n}>{n} min</option>)}
-                  </select>
-                </label>
-                {mode === "practice" && target && (
-                  <span className="qz-chip">{target >= 0.75 ? "Gentle check" : target <= 0.6 ? "Stretch session" : "Normal difficulty"} <button onClick={() => setTarget(null)} title="Use normal difficulty">✕</button></span>
-                )}
-              </div>
-              {startError && <p className="qz-error">{startError}</p>}
+            {(startError || notice) && <p className="qx-error">{startError || notice}</p>}
 
-              {/* ── Subject icon cards ── */}
-              <div>
-                <p
-                  className="topics-section-heading"
-                  style={{ marginBottom: 14 }}
-                >
-                  Categories
-                </p>
-                <div className="subject-cards-row">
-                  {subjects.filter(Boolean).map((s) => {
-                    const meta = getSubjectMeta(s);
-                    const isActive = selectedSubject === s;
-                    return (
-                      <div
-                        key={s}
-                        className={`subject-icon-card ${isActive ? "active" : ""}`}
-                        onClick={() => setSelectedSubject(s)}
-                      >
-                        <div
-                          className="subject-icon-bg"
-                          style={{ background: meta.light }}
-                        >
-                          <span style={{ fontSize: 28 }}>{meta.emoji}</span>
-                        </div>
-                        <span className="subject-card-label">{s}</span>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* ── Topics grid ── */}
-              {mode === "practice" && selectedSubject && topics.length > 0 && (
-                <div className="topics-section">
-                  <p className="topics-section-heading">{selectedSubject}</p>
-                  <div className="topics-grid">
-                    {topics.map((t) => (
-                      <div
-                        key={t}
-                        className={`topic-card ${selectedTopic === t ? "selected" : ""}`}
-                        onClick={() => setSelectedTopic(t)}
-                      >
-                        <span
-                          className="topic-card-title"
-                          style={
-                            selectedTopic === t
-                              ? { color: "var(--accent)" }
-                              : {}
-                          }
-                        >
-                          {t}
-                        </span>
-                        <span className="topic-card-sub">
-                          {selectedTopic === t ? "Selected ✓" : "Tap to select"}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* ── Start button ── */}
-              {((mode === "practice" && selectedTopic) || (mode === "level" && selectedSubject)) && (
-                <button
-                  className="start-quiz-btn"
-                  onClick={startQuiz}
-                  disabled={loadingQuestions}
-                >
-                  {loadingQuestions
-                    ? "Loading…"
-                    : mode === "level" ? `Start ${selectedSubject} level test →` : `Start ${selectedTopic} Quiz →`}
+            <section className="qx-step">
+              <h2><span>1</span> Type</h2>
+              <div className="qx-seg">
+                <button type="button" className={mode === "practice" ? "on" : ""} onClick={() => setMode("practice")}>
+                  Topic practice
                 </button>
-              )}
-            </div>
+                <button type="button" className={mode === "level" ? "on" : ""} onClick={() => setMode("level")}>
+                  Level test
+                </button>
+              </div>
+              <p className="qx-hint">
+                {mode === "practice" ? "Focus on one topic." : "Covers the whole subject to find your level."}
+              </p>
+            </section>
+
+            <section className="qx-step">
+              <h2><span>2</span> Subject</h2>
+              <div className="qx-pills">
+                {subjects.filter(Boolean).map((s) => (
+                  <button
+                    key={s}
+                    type="button"
+                    className={`qx-pill ${selectedSubject === s ? "on" : ""}`}
+                    onClick={() => setSelectedSubject(s)}
+                  >
+                    <span aria-hidden>{emojiFor(s)}</span> {s}
+                  </button>
+                ))}
+              </div>
+            </section>
+
+            {mode === "practice" && selectedSubject && topics.length > 0 && (
+              <section className="qx-step">
+                <h2><span>3</span> Topic</h2>
+                <Pills items={topics} value={selectedTopic} onChange={setSelectedTopic} />
+              </section>
+            )}
+
+            <section className="qx-step qx-step--row">
+              <div>
+                <h2>Questions</h2>
+                <Pills items={COUNTS} value={count} onChange={setCount} />
+              </div>
+              <div>
+                <h2>Time limit</h2>
+                <Pills
+                  items={LIMITS}
+                  value={minutes}
+                  onChange={setMinutes}
+                  render={(n) => (n === 0 ? "None" : `${n}m`)}
+                />
+              </div>
+            </section>
+
+            {mode === "practice" && target && (
+              <span className="qx-tag">
+                {target >= 0.75 ? "Gentle check" : target <= 0.6 ? "Stretch session" : "Normal difficulty"}
+                <button type="button" onClick={() => setTarget(null)} aria-label="Use normal difficulty">✕</button>
+              </span>
+            )}
           </main>
+
+          {/* sticky (not fixed): stays visible while scrolling, never covers the footer */}
+          <AnimatePresence>
+            {readyToStart && (
+              <motion.div
+                className="qx-startbar"
+                initial={{ y: 40, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                exit={{ y: 40, opacity: 0 }}
+              >
+                <div className="qx-startbar-in">
+                  <div className="qx-startbar-info">
+                    <b>{mode === "level" ? `${selectedSubject} level test` : selectedTopic}</b>
+                    <span>{count} questions · {minutes ? `${minutes} min` : "no time limit"}</span>
+                  </div>
+                  <button type="button" className="qx-btn" onClick={startQuiz} disabled={loadingQuestions}>
+                    {loadingQuestions ? "Loading…" : "Start →"}
+                  </button>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
-        <Footer />
-        
-        {/* Identity Verification Modal */}
+
         {showIdentityVerification && (
           <IdentityVerification
             onVerificationComplete={handleVerificationComplete}
-            onClose={handleVerificationCancel}
+            onClose={() => setShowIdentityVerification(false)}
           />
         )}
       </>
     );
 
-  /* ── Quiz Complete ── */
-  if (quizCompleted) {
+  /* ================================================================
+     RESULT SCREEN
+     ================================================================ */
+  if (quizCompleted)
     return (
-      <>
-        <Navbar />
-        <div className="quiz-page">
-          <main className="main-content">
-            <QuizComplete
-              correctAnswers={quizStats.correctAnswers}
-              totalQuestions={quizStats.totalQuestions}
-              timeTaken={quizStats.totalTime}
-              onDashboard={() => navigate("/dashboard")}
-              onRestart={() => {
-                setQuizStarted(false);
-                setQuizCompleted(false);
-                setQuestions([]);
-                setCurrentQuestion(1);
-                setSelectedSubject("");
-                setSelectedTopic("");
-                setQuizStats({
-                  totalQuestions: 0,
-                  correctAnswers: 0,
-                  totalTime: 0,
-                  accuracy: 0,
-                });
-                setQuizReview(null);
-                setSessionId(null);
-                setSecondsLeft(null);
-                setFeedback(null);
-                setYourLevel(null);
-                setStartError("");
-                quizApi.active().then((d) => setResumeInfo(d.active || null)).catch(() => {});
-              }}
-              review={quizReview}
-            />
-          </main>
-        </div>
-        <Footer />
-      </>
-    );
-  }
-
-  /* ── Quiz Active ── */
-  return (
-    <>
-      <Navbar />
-      <div className="quiz-page">
-        {/* Proctoring Warning */}
-        <ProctoringWarning warning={proctoringWarning} onClear={clearProctoringWarning} />
-        
-        {/* Speaking Warning */}
-        <SpeakingWarning 
-          violation={speakingWarning} 
-          onClear={clearSpeakingWarningHandler}
-          autoClear={true}
-        />
-        
-        {/* Quiz Termination Modal */}
-        {shouldTerminate && (
-          <QuizTerminationModal
-            onGoToDashboard={() => navigate("/dashboard")}
-            violationCount={totalViolationCount}
+      <div className="qx qx--result-page">
+        <main className="qx-result">
+          <QuizComplete
+            correctAnswers={quizStats.correctAnswers}
+            totalQuestions={quizStats.totalQuestions}
+            timeTaken={quizStats.totalTime}
+            onDashboard={() => navigate("/dashboard")}
+            onRestart={restart}
+            review={quizReview}
           />
-        )}
-        
-        {/* Webcam Stream with Object Detection - Right side */}
-        {webcamEnabled && (
-          <div className="webcam-proctoring-container">
-            <WebcamStream
-              isActive={quizStarted && !quizCompleted}
-              onVideoRef={(ref) => { detectionVideoRef.current = ref; }}
-              onError={(error) => console.error('Webcam error:', error)}
-              showControls={false}
-            />
-            
-            {/* Object Detection Overlay */}
-            {detectionReady && (
-              <ObjectDetectionOverlay
-                detections={detections}
-                isActive={isDetecting}
-                showLabels={true}
-                showConfidence={true}
-                animated={true}
-              />
-            )}
-            
-            {/* Object Detection Status - Below video feed */}
-            {quizStarted && !quizCompleted && detectionReady && (
-              <div className="object-detection-status">
-                <div className="status-header">
-                  <span className="status-title">Object Detection</span>
-                  <div className={`status-indicator ${isDetecting ? 'active' : 'inactive'}`}></div>
-                </div>
-                <div className="detection-summary">
-                  <span>Objects: {detections.length}</span>
-                  {violations.length > 0 && (
-                    <span className="violation-count">Violations: {violations.length}</span>
-                  )}
-                </div>
-                {detectionError && (
-                  <div className="detection-error">
-                    ⚠️ Detection Error: {detectionError}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Combined Voice Monitoring - Left side */}
-        {quizStarted && !quizCompleted && (
-          <div className="combined-voice-monitoring">
-            {/* Audio Indicator */}
-            <AudioIndicator
-              isInitialized={voiceReady}
-              isDetecting={voiceDetecting}
-              isSpeaking={isSpeaking}
-              violations={voiceViolations}
-              error={voiceError}
-              isLoading={voiceLoading}
-            />
-          </div>
-        )}
-        
-        <nav className="quiz-nav">
-          <div className="quiz-nav-left">
-            <span className={`difficulty ${difficulty.toLowerCase()}`}>
-              {difficulty}
-            </span>
-            {currentQ.level != null && <span className="qz-level">Question level {currentQ.level}/10</span>}
-            {yourLevel != null && <span className="qz-level">You: {yourLevel}/10</span>}
-            <div className="timer-circle">{timer}s</div>
-            {hasLimit && <span className={`qz-level ${secondsLeft <= 60 ? "qz-low" : ""}`}>⏱ {fmt(secondsLeft)} left</span>}
-            {totalViolationCount > 0 && (
-              <span className="violation-count">
-                Warnings: {totalViolationCount}/3
-              </span>
-            )}
-          </div>
-          
-          {/* Webcam Toggle */}
-          <div className="webcam-toggle">
-            <label className="toggle-label">
-              <span className="toggle-text">📷 Webcam</span>
-              <div className="toggle-switch">
-                <input
-                  type="checkbox"
-                  checked={webcamEnabled}
-                  onChange={(e) => setWebcamEnabled(e.target.checked)}
-                  disabled={quizStarted}
-                />
-                <span className="toggle-slider"></span>
-              </div>
-            </label>
-            {quizStarted && (
-              <span className="toggle-hint">
-                {webcamEnabled ? 'Webcam monitoring active' : 'Webcam monitoring disabled'}
-              </span>
-            )}
-          </div>
-        </nav>
-        <main className="main-content">
-          <div className="quiz-wrapper">
-            {remedial && (
-              <div style={{ margin: "0 0 12px", padding: "10px 14px", borderRadius: 10, background: "rgba(245,158,11,0.15)", color: "inherit" }}>
-                💡 {remedial.reason} Try <b>{remedial.backTo}</b> first.
-              </div>
-            )}
-            {feedback && feedback.message && (
-              <div className={`qz-feedback qz-feedback--${feedback.direction || "same"}`}>
-                {feedback.direction === "harder" ? "⬆️" : feedback.direction === "easier" ? "⬇️" : "➡️"} {feedback.message}
-              </div>
-            )}
-            <ProgressBar
-              progress={(currentQuestion / total) * 100}
-            />
-            <AnimatePresence mode="wait">
-              <QuestionCard
-                questionNumber={currentQuestion}
-                totalQuestions={total}
-                questionText={currentQ.questionText}
-                options={currentQ.options}
-                hints={hints}
-                hintsLeft={hintsLeft}
-                showHint={showHint}
-                onHint={handleHint}
-                onMoreHint={fetchHint}
-                selectedOption={selectedOption}
-                onOptionSelect={setSelectedOption}
-                onNext={handleNextQuestion}
-                isLastQuestion={currentQuestion >= total}
-                hasSelectedOption={selectedOption !== null}
-                isTransitioning={isTransitioning}
-              />
-            </AnimatePresence>
-          </div>
         </main>
       </div>
-      <Footer />
-    </>
+    );
+
+  /* ================================================================
+     ACTIVE QUIZ — focus mode
+     ================================================================ */
+  const lowTime = hasLimit && secondsLeft <= 60;
+  const isLast = currentQuestion >= total;
+  const hintList = hints.filter(Boolean);
+
+  return (
+    <div className="qx qx--focus">
+      <ProctoringWarning warning={proctoringWarning} onClear={clearProctoringWarning} />
+      <SpeakingWarning violation={speakingWarning} onClear={() => setSpeakingWarning(null)} autoClear />
+      {shouldTerminate && (
+        <QuizTerminationModal onGoToDashboard={() => navigate("/dashboard")} violationCount={totalViolationCount} />
+      )}
+
+      {/* webcam + object detection (bottom-right, fixed) */}
+      {webcamEnabled && (
+        <div className="qx-cam">
+          <WebcamStream
+            isActive={quizStarted && !quizCompleted}
+            onVideoRef={(ref) => { detectionVideoRef.current = ref; }}
+            onError={(e) => console.error("Webcam error:", e)}
+            showControls={false}
+          />
+          {detectionReady && (
+            <ObjectDetectionOverlay detections={detections} isActive={isDetecting} showLabels showConfidence animated />
+          )}
+        </div>
+      )}
+
+      {/* voice indicator (bottom-left, fixed) */}
+      <AudioIndicator
+        isInitialized={voiceReady}
+        isDetecting={voiceDetecting}
+        isSpeaking={isSpeaking}
+        violations={voiceViolations}
+        error={voiceError}
+        isLoading={voiceLoading}
+      />
+
+      {/* progress bar — sticks just below the navbar */}
+            <header className="qx-top">
+        <div className="qx-top-row">
+          <button type="button" className="qx-exit" onClick={exitQuiz}>← Exit test</button>
+
+          <span className="qx-qlabel">Question <b>{currentQuestion}</b> of {total}</span>
+
+          <div className="qx-top-right">
+            {totalViolationCount > 0 && <span className="qx-warn">⚠ {totalViolationCount}/3</span>}
+            <span className={`qx-clock ${lowTime ? "low" : ""}`}>
+              {hasLimit ? `⏱ ${fmt(secondsLeft)}` : fmt(timer)}
+            </span>
+          </div>
+        </div>
+
+        <div
+          className="qx-bar"
+          role="progressbar"
+          aria-valuemin={1}
+          aria-valuemax={total}
+          aria-valuenow={currentQuestion}
+        >
+          {Array.from({ length: total }, (_, i) => (
+            <span
+              key={i}
+              className={`qx-bar-seg ${i < currentQuestion - 1 ? "done" : i === currentQuestion - 1 ? "now" : ""}`}
+            />
+          ))}
+        </div>
+      </header>
+
+      <main className="qx-stage">
+        <AnimatePresence mode="wait">
+          <motion.section
+            key={currentQuestion}
+            className="qx-card"
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -16 }}
+            transition={{ duration: 0.25 }}
+          >
+            <div className="qx-meta">
+              {difficulty && <span className={`qx-diff ${difficulty}`}>{difficulty}</span>}
+              {currentQ.level != null && <span>Level {currentQ.level}/10</span>}
+            </div>
+
+            {feedback && feedback.message && (
+              <p className={`qx-note qx-note--${feedback.direction || "same"}`}>
+                {feedback.direction === "harder" ? "↑" : feedback.direction === "easier" ? "↓" : "→"} {feedback.message}
+              </p>
+            )}
+            {remedial && (
+              <p className="qx-note qx-note--warn">
+                {remedial.reason} Try <b>{remedial.backTo}</b> first.
+              </p>
+            )}
+
+            <h1 className="qx-question">{currentQ.questionText}</h1>
+
+            <div className="qx-options" role="radiogroup">
+              {currentQ.options?.map((opt, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  role="radio"
+                  aria-checked={selectedOption === i}
+                  className={`qx-opt ${selectedOption === i ? "on" : ""}`}
+                  onClick={() => !isTransitioning && setSelectedOption(i)}
+                  disabled={isTransitioning}
+                >
+                  <span className="qx-letter">{LETTERS[i]}</span>
+                  <span className="qx-opt-text">{opt}</span>
+                  <span className="qx-check" aria-hidden="true" />
+                </button>
+              ))}
+            </div>
+
+            {showHint && hintList.length > 0 && (
+              <motion.div className="qx-hintbox" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}>
+                {hintList.map((h, i) => (
+                  <p key={i}>
+                    {hintList.length > 1 && <b>Hint {i + 1} · </b>}
+                    {h}
+                  </p>
+                ))}
+                {hintsLeft > 0 && (
+                  <button type="button" className="qx-link" onClick={fetchHint} disabled={isTransitioning}>
+                    More help ({hintsLeft} left)
+                  </button>
+                )}
+              </motion.div>
+            )}
+
+            {notice && <p className="qx-error">{notice}</p>}
+
+            <footer className="qx-actions">
+              <button type="button" className="qx-ghost" onClick={handleHint} disabled={isTransitioning}>
+                💡 {hintList.length ? (showHint ? "Hide hint" : "Show hint") : `Hint (${hintsLeft})`}
+              </button>
+              <button type="button" className="qx-btn" onClick={handleNext} disabled={selectedOption === null || isTransitioning}>
+                {isTransitioning ? "Saving…" : isLast ? "Finish" : "Next →"}
+              </button>
+            </footer>
+
+            <p className="qx-keys">Press A–D to choose · Enter to continue · H for a hint</p>
+          </motion.section>
+        </AnimatePresence>
+            </main>
+
+      {showExit && (
+        <div className="qx-modal" role="dialog" aria-modal="true" aria-labelledby="qx-exit-title">
+          <div className="qx-modal-card">
+            <h3 id="qx-exit-title">Leave this test?</h3>
+            <p>Your progress is saved. You can continue it later from the quiz page.</p>
+            <div className="qx-modal-actions">
+              <button type="button" className="qx-ghost" onClick={() => setShowExit(false)}>
+                Keep going
+              </button>
+              <button type="button" className="qx-btn qx-btn--danger" onClick={confirmExit}>
+                Exit test
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
   );
 };
 

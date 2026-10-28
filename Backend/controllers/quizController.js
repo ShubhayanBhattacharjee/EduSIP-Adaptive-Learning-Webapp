@@ -52,7 +52,7 @@ exports.startQuiz = async (req, res) => {
     const { subject, topic } = req.body;
     const mode = req.body.mode === "level" ? "level" : "practice";
 
-    if (settings.get("requirePlacement") && req.user.role === "student") {
+    if (req.user.role === "student") {      // ALWAYS on: no quiz before the placement test
       const st = await placement.status(req.user.id);
       if (!st.done) {
         return res.status(428).json({ success: false, code: "PLACEMENT_REQUIRED", message: "Take the 10-question placement test first" });
@@ -188,7 +188,7 @@ exports.submitAnswer = async (req, res) => {
     // 5. Is the session finished? If not, pick the next question.
     const answeredCount = await Response.countDocuments({ user: userId, sessionId: exposure.sessionId });
     const isPlacement = exposure.mode === "placement";
-    const total = isPlacement ? (await placement.getActiveTest()).questionIds.length : (exposure.sessionTotal || SESSION_LENGTH[exposure.mode]);
+    const total = isPlacement ? (await placement.getPlayable()).ids.length : (exposure.sessionTotal || SESSION_LENGTH[exposure.mode]);
     const done = answeredCount >= total;
 
     let nextQuestion = null;

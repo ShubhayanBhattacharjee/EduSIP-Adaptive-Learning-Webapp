@@ -39,7 +39,7 @@ exports.createClass = async (req, res) => {
     const name = String(req.body.name || "").trim().slice(0, 100);
     if (!name) return res.status(400).json({ success: false, message: "Class name is required" });
 
-    for (let attempt = 0; attempt < 5; attempt++) {        // retry on the rare duplicate code
+    for (let attempt = 0; attempt < 5; attempt++) {
       try {
         const c = await Class.create({
           name, teacher: req.user.id, joinCode: crypto.randomBytes(4).toString("hex").toUpperCase(),
@@ -55,7 +55,6 @@ exports.createClass = async (req, res) => {
     res.status(500).json({ success: false, message: "Failed to create class" });
   }
 };
-
 exports.myClasses = async (req, res) => {
   try {
     const filter = ["admin", "superadmin"].includes(req.user.role) ? {} : { teacher: req.user.id };
@@ -394,31 +393,44 @@ const doneFilter = (a, userFilter) => {
   return f;
 };
 
+const isDoneBy = async (a, userId) =>
+  a.kind === "reading"
+    ? (a.completedBy || []).some((id) => String(id) === String(userId))
+    : !!(await QuizAttempt.exists(doneFilter(a, { user: userId })));
+    
 exports.createAssignment = async (req, res) => {
   try {
     const c = await loadOwnClass(req, res);
     if (!c) return;
-    const title = String(req.body.title || "").trim().slice(0, 120);
-    const mode = req.body.mode === "level" ? "level" : "practice";
-    const subjectIn = String(req.body.subject || "").trim();
-    const topicIn = String(req.body.topic || "").trim();
-    if (!title || !subjectIn || (mode === "practice" && !topicIn)) {
-      return res.status(400).json({ success: false, message: "Title, subject and (for practice) topic are required" });
-    }
-    const APPROVED = { $nin: ["pending", "rejected"] };
-    const found = await Question.findOne({ subject: ci(subjectIn), ...(mode === "practice" ? { topic: ci(topicIn) } : {}), status: APPROVED }).select("subject topic").lean();
-    if (!found) return res.status(404).json({ success: false, message: "No questions exist for that subject/topic" });
+    const kind = req.body.kind === "reading" ? "reading" : "quiz";
+const title = String(req.body.title || "").trim().slice(0, 120);
+const mode = kind === "reading" ? "practice" : (req.body.mode === "level" ? "level" : "practice");
+const subjectIn = String(req.body.subject || "").trim();
+const topicIn = String(req.body.topic || "").trim();
+const details = String(req.body.details || "").trim().slice(0, 1000);
+if (!title || !subjectIn || (kind === "quiz" && mode === "practice" && !topicIn)) {
+  return res.status(400).json({ success: false, message: "Title, subject and (for practice) topic are required" });
+}
 
-    const questions = Math.min(Math.max(parseInt(req.body.questions, 10) || 10, 3), 40);
-    const minutes = Math.min(Math.max(parseInt(req.body.minutes, 10) || 0, 0), 240);
-    let dueAt;
-    if (req.body.dueAt) {
-      dueAt = new Date(req.body.dueAt);
-      if (isNaN(dueAt.getTime())) return res.status(400).json({ success: false, message: "Invalid due date" });
-    }
-    const a = await Assignment.create({
-      class: c._id, teacher: req.user.id, title, subject: found.subject, topic: mode === "practice" ? found.topic : "", mode, questions, minutes, dueAt,
-    });
+let subject = subjectIn, topic = topicIn;
+if (kind === "quiz") {
+  const APPROVED = { $nin: ["pending", "rejected"] };
+  const found = await Question.findOne({ subject: ci(subjectIn), ...(mode === "practice" ? { topic: ci(topicIn) } : {}), status: APPROVED }).select("subject topic").lean();
+  if (!found) return res.status(404).json({ success: false, message: "No questions exist for that subject/topic" });
+  subject = found.subject;
+  topic = mode === "practice" ? found.topic : "";
+}
+
+const questions = Math.min(Math.max(parseInt(req.body.questions, 10) || 10, 3), 40);
+const minutes = Math.min(Math.max(parseInt(req.body.minutes, 10) || 0, 0), 240);
+let dueAt;
+if (req.body.dueAt) {
+  dueAt = new Date(req.body.dueAt);
+  if (isNaN(dueAt.getTime())) return res.status(400).json({ success: false, message: "Invalid due date" });
+}
+const a = await Assignment.create({
+  class: c._id, teacher: req.user.id, title, subject, topic, mode, kind, details, questions, minutes, dueAt,
+});
     res.status(201).json({ success: true, assignment: { id: a._id } });
   } catch (error) {
     console.error("Create assignment error:", error);
@@ -434,13 +446,15 @@ exports.listAssignments = async (req, res) => {
     const names = new Map((await User.find({ _id: { $in: c.students } }).select("fullname").lean()).map((u) => [String(u._id), u.fullname]));
     const out = [];
     for (const a of list) {
-      const doneIds = (await QuizAttempt.distinct("user", doneFilter(a, { user: { $in: c.students } }))).map(String);
-      const done = new Set(doneIds);
+      const done = a.kind === "reading"
+  ? new Set((a.completedBy || []).map(String).filter((id) => c.students.map(String).includes(id)))
+  : new Set((await QuizAttempt.distinct("user", doneFilter(a, { user: { $in: c.students } }))).map(String));
       out.push({
         id: a._id, title: a.title, subject: a.subject, topic: a.topic, mode: a.mode, questions: a.questions, minutes: a.minutes,
         dueAt: a.dueAt || null, createdAt: a.createdAt,
         completed: done.size, total: c.students.length,
         notDone: c.students.map(String).filter((id) => !done.has(id)).map((id) => names.get(id)).filter(Boolean),
+        kind: a.kind || "quiz", details: a.details || "",
       });
     }
     res.json({ success: true, assignments: out });
@@ -471,17 +485,37 @@ exports.myAssignments = async (req, res) => {
     const list = await Assignment.find({ class: { $in: classes.map((c) => c._id) } }).sort({ createdAt: -1 }).limit(30).lean();
     const out = [];
     for (const a of list) {
-      const done = await QuizAttempt.exists(doneFilter(a, { user: req.user.id }));
+      const done = await isDoneBy(a, req.user.id);
       out.push({
         id: a._id, className: nameById.get(String(a.class)), title: a.title, subject: a.subject, topic: a.topic, mode: a.mode,
         questions: a.questions, minutes: a.minutes, dueAt: a.dueAt || null, createdAt: a.createdAt, done: !!done,
         overdue: !done && !!a.dueAt && new Date(a.dueAt) < new Date(),
+        kind: a.kind || "quiz", details: a.details || "",
       });
     }
     res.json({ success: true, assignments: out });
   } catch (error) {
     console.error("My assignments error:", error);
     res.status(500).json({ success: false, message: "Failed to load assignments" });
+  }
+};
+
+// student: mark a THEORY READING assignment as read (quiz assignments complete automatically)
+exports.completeReading = async (req, res) => {
+  try {
+    if (!mongoose.isValidObjectId(req.params.aid)) return res.status(400).json({ success: false, message: "Invalid assignment id" });
+    const a = await Assignment.findById(req.params.aid).lean();
+    if (!a) return res.status(404).json({ success: false, message: "Assignment not found" });
+    if (a.kind !== "reading") {
+      return res.status(400).json({ success: false, message: "Quiz assignments are completed by taking the quiz" });
+    }
+    const inClass = await Class.exists({ _id: a.class, students: req.user.id });
+    if (!inClass) return res.status(403).json({ success: false, message: "Not your assignment" });
+    await Assignment.updateOne({ _id: a._id }, { $addToSet: { completedBy: req.user.id } });
+    res.json({ success: true });
+  } catch (error) {
+    console.error("Complete reading error:", error);
+    res.status(500).json({ success: false, message: "Failed to mark as read" });
   }
 };
 

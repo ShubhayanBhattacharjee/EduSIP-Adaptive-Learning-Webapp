@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { homeFor } from "../../utils/roles";
+import "./auth.css";
 
 const GoogleSuccess = () => {
   const navigate = useNavigate();
@@ -15,7 +16,16 @@ const GoogleSuccess = () => {
     // eslint-disable-next-line
   }, []);
 
-  return <div style={{ padding: 40, textAlign: "center" }}>Signing you in...</div>;
+  return (
+    <div className="au">
+           <div className="au-shell">
+        <p className="au-brand">EduSip</p>
+        <div className="au-card au-done" role="status" aria-live="polite">
+          <h2 className="au-title" style={{ textAlign: "center", marginBottom: 0 }}>Signing you in...</h2>
+        </div>
+      </div>
+    </div>
+  );
 };
 
 export default GoogleSuccess;

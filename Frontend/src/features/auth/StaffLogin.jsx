@@ -1,16 +1,15 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { homeFor } from "../../utils/roles";
-import Navbar from "../../shared/layout/Navbar";
-import Footer from "../../shared/layout/Footer";
-import "./Login.css";
+import "./auth.css";
 
 // Internal page for admins and super admins: /staff/login (not linked from the public pages).
 const StaffLogin = () => {
   const { staffLogin, user } = useAuth();
   const navigate = useNavigate();
   const [form, setForm] = useState({ email: "", password: "" });
+  const [showPass, setShowPass] = useState(false);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -28,32 +27,40 @@ const StaffLogin = () => {
   };
 
   return (
-    <>
-      <Navbar />
-      <div className="page-content">
-        <div className="auth-wrapper">
-          <div className="right-panel">
-            <form onSubmit={submit} className="login-form">
-              <h2>Staff sign in</h2>
-              <p className="form-subtitle">Administrators only.</p>
-              {error && <div className="error-message">{error}</div>}
-              <div className="field-group">
-                <label htmlFor="email">Email</label>
-                <input id="email" type="email" value={form.email} required autoComplete="username"
-                  onChange={(e) => setForm({ ...form, email: e.target.value })} />
-              </div>
-              <div className="field-group">
-                <label htmlFor="password">Password</label>
-                <input id="password" type="password" value={form.password} required autoComplete="current-password"
-                  onChange={(e) => setForm({ ...form, password: e.target.value })} />
-              </div>
-              <button type="submit" className="login-btn" disabled={busy}>{busy ? "Signing in..." : "Sign in"}</button>
-            </form>
+    <div className="au">
+            <div className="au-shell">
+        <p className="au-brand">EduSip</p>
+        <form className="au-card" onSubmit={submit}>
+          <h2 className="au-title">Staff sign in</h2>
+          <p className="au-sub">For EduSip administrators. Students and teachers log in on the main page.</p>
+
+          {error && <div className="au-error" role="alert">{error}</div>}
+
+          <div className="au-field">
+            <label className="au-label" htmlFor="email">Email</label>
+            <input className="au-input" id="email" type="email" autoComplete="username"
+              value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} required />
           </div>
-        </div>
+
+          <div className="au-field">
+            <label className="au-label" htmlFor="password">Password</label>
+            <div className="au-pw">
+              <input className="au-input" id="password" type={showPass ? "text" : "password"}
+                autoComplete="current-password"
+                value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} required />
+              <button type="button" className="au-pw-toggle" onClick={() => setShowPass(!showPass)}
+                aria-label={showPass ? "Hide password" : "Show password"}>
+                {showPass ? "Hide" : "Show"}
+              </button>
+            </div>
+          </div>
+
+          <button type="submit" className="au-btn" disabled={busy}>{busy ? "Signing in..." : "Sign in"}</button>
+
+          <p className="au-foot"><Link to="/login">Student or teacher? Log in here</Link></p>
+        </form>
       </div>
-      <Footer />
-    </>
+    </div>
   );
 };
 

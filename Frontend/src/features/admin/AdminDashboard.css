@@ -1,66 +1,90 @@
-/* ================= LAYOUT ================= */
-.admin-dashboard {
-  display: flex;
-  flex-direction: column;
-  min-height: 100vh;
-}
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap');
 
-.main-area {
-  display: flex;
-  flex: 1;
-  margin-top: 60px;
-  margin-bottom: 50px;
-  background: transparent;
+/* ═════════════ ROOT + TOKENS ═════════════
+   Every admin and super admin page renders inside .ad,
+   so the --ad-* variables below are available to all of them. */
+.ad {
+  --ad-line: color-mix(in srgb, var(--text-color) 10%, transparent);
+  --ad-line-strong: color-mix(in srgb, var(--text-color) 20%, transparent);
+  --ad-soft: color-mix(in srgb, var(--text-color) 5%, transparent);
+  --ad-muted: var(--subtext-color, #6b7280);
+  --ad-green: #16a34a;
+  --ad-red: #dc2626;
+  --ad-amber: #d97706;
+  --ad-nav-h: 98px;                         /* height of the site navbar */
+  --ad-pad: clamp(16px, 3vw, 48px);
+  --ad-gap: 16px;
+  --ad-r: 20px;
+  --ad-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  flex: 1 0 auto;
+  width: 100%;
+  max-width: 1600px;
+  margin: 0 auto;
+  padding: 28px var(--ad-pad) 80px;
+  display: grid;
+  grid-template-columns: 232px minmax(0, 1fr);
+  gap: clamp(24px, 3.4vw, 56px);
+  align-items: start;
+  color: var(--text-color);
+  font-family: "DM Sans", "Poppins", system-ui, sans-serif;
+}
+.ad *, .ad *::before, .ad *::after { box-sizing: border-box; }
+.ad h1, .ad h2, .ad h3, .ad p { margin: 0; }
+.ad button { font-family: inherit; }
+
+/* ═════════════ CONTENT AREA ═════════════ */
+.ad-content {
   position: relative;
-  overflow: hidden;
+  isolation: isolate;
+  min-width: 0;
 }
 
-.admin-content {
-  flex: 1;
-  display: flex;
-  justify-content: center;
-  padding: 32px 24px;
-  box-sizing: border-box;
-  /* margin-left: 240px; */
-  position: relative;
-  z-index: 2;
-}
-
-/* ================= CIRCULAR FADING GRID ================= */
-.admin-dashboard-hero::before {
+/* faint dot grid that fades out from the top-left corner */
+.ad-content::before {
   content: "";
-  position: fixed;
-  inset: 0;
+  position: absolute;
+  z-index: -1;
+  top: -28px;
+  left: -24px;
+  right: -24px;
+  height: 340px;
   pointer-events: none;
-  z-index: 0;
-
-  background-image:
-    linear-gradient(rgba(0, 0, 0, 0.12) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(0, 0, 0, 0.12) 1px, transparent 1px);
-  background-size: 40px 40px;
-
-  -webkit-mask-image: radial-gradient(
-    ellipse 68% 68% at 50% 45%,
-    rgba(0,0,0,0.65) 0%,
-    rgba(0,0,0,0.3) 40%,
-    rgba(0,0,0,0.07) 65%,
-    transparent 100%
-  );
-  mask-image: radial-gradient(
-    ellipse 68% 68% at 50% 45%,
-    rgba(0,0,0,0.65) 0%,
-    rgba(0,0,0,0.3) 40%,
-    rgba(0,0,0,0.07) 65%,
-    transparent 100%
-  );
+  background-image: radial-gradient(color-mix(in srgb, var(--text-color) 20%, transparent) 1px, transparent 1.5px);
+  background-size: 22px 22px;
+  -webkit-mask-image: radial-gradient(ellipse 75% 100% at 0% 0%, #000 10%, transparent 72%);
+  mask-image: radial-gradient(ellipse 75% 100% at 0% 0%, #000 10%, transparent 72%);
 }
 
-body.dark-mode .admin-dashboard-hero::before {
-  background-image:
-    linear-gradient(rgba(255, 255, 255, 0.12) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.12) 1px, transparent 1px);
+/* every page change fades and lifts in */
+.ad-view {
+  min-width: 0;
+  animation: ad-in .45s cubic-bezier(.2, .8, .2, 1) both;
 }
-/* ── step 4: room for the fixed sidebar and wide tables ── */
-.admin-content { align-items: flex-start; min-width: 0; }
-@media (min-width: 1101px) { .admin-content { padding-left: 290px; } }
-@media (max-width: 1100px) { .main-area { flex-direction: column; } .admin-content { padding: 16px; } }
+@keyframes ad-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* the plain "Loading..." / "No data" lines the pages show */
+.ad-view > p { padding: 40px 0; color: var(--ad-muted); font-size: 14px; }
+
+/* ═════════════ RESPONSIVE ═════════════
+   Under 1000px the sidebar becomes a sticky tab bar (styled in AdminSidebar.css). */
+@media (max-width: 1000px) {
+  .ad {
+    --ad-nav-h: 80px;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+    padding-top: 0;
+  }
+  .ad-content::before { top: 0; }
+}
+
+@media (max-width: 480px) {
+  .ad { padding-bottom: 56px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ad *, .ad *::before, .ad *::after { animation: none !important; transition: none !important; }
+}

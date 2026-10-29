@@ -265,3 +265,17 @@
     animation: none;
   }
 }
+
+/* ===== voice pill: theme colours, compact ===== */
+.audio-indicator {
+  background: var(--card-bg, #fff);
+  color: var(--text-color);
+  border: 1px solid color-mix(in srgb, var(--text-color) 14%, transparent);
+  border-radius: 999px;
+  padding: 8px 14px;
+  min-width: 0;
+  left: 16px; right: auto; bottom: 16px;
+  box-shadow: 0 10px 30px -12px rgba(0, 0, 0, .4);
+}
+.audio-text { color: var(--text-color); font-size: 12px; flex-grow: 0; }
+.audio-indicator:has(.audio-dot[data-status="speaking"]) { border-color: #ef4444; }

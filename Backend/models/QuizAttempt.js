@@ -60,4 +60,7 @@ const quizAttemptSchema = new mongoose.Schema({
     }
 }, { timestamps: true });
 
-module.exports = mongoose.model("QuizAttempt", quizAttemptSchema);  
+// Dashboard + history always ask "this student's attempts, newest first"
+quizAttemptSchema.index({ user: 1, createdAt: -1 });
+
+module.exports = mongoose.model("QuizAttempt", quizAttemptSchema);

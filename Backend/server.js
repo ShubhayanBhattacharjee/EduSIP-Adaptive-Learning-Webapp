@@ -2,6 +2,7 @@
 const express = require("express");
 const dotenv = require("dotenv");
 const cors = require("cors");
+const compression = require("compression");
 const passport = require("passport");
 const path = require("path");
 const helmet = require("helmet");
@@ -39,6 +40,7 @@ if (process.env.NODE_ENV === "production") {
   if (!process.env.ML_API_KEY) throw new Error("ML_API_KEY is required in production");
 }
 if (process.env.FORCE_ADAPTIVE === "true") console.warn("FORCE_ADAPTIVE=true: everyone gets the adaptive version, so there is NO control group for the pilot report.");
+app.use(compression());   // gzip JSON responses (needs: npm i compression)
 app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));  // keeps /uploads images loading cross-origin
 app.use(cors({
   origin: process.env.CLIENT_URL,
@@ -47,9 +49,10 @@ app.use(cors({
 // Behind a proxy or load balancer (Render, Nginx...) set TRUST_PROXY=1 so every student is not seen as the same IP.
 if (process.env.TRUST_PROXY) app.set("trust proxy", Number(process.env.TRUST_PROXY) || process.env.TRUST_PROXY);
 
+const skipLT = () => process.env.LOAD_TEST === "true";
 // RATE LIMITS. They must be registered BEFORE the routes: Express runs middleware in order, so a limiter placed
 // after a router never sees the requests that router answers.
-const perMinute = (limit) => rateLimit({ windowMs: 60 * 1000, limit });
+const perMinute = (limit) => rateLimit({ windowMs: 60 * 1000, limit, skip: skipLT });
 // Login attempts are counted per IP + email (a whole classroom on one IP is not locked out together);
 // a successful login does not count.
 const loginKey = (req) => `${ipKeyGenerator(req.ip)}|${String((req.body && req.body.email) || "").trim().toLowerCase()}`;
@@ -60,7 +63,7 @@ app.use(express.json({ limit: "1mb" }));
 app.use(express.urlencoded({ extended: true, limit: "1mb" }));
 app.use("/auth/login", loginLimiter);
 app.use("/auth/staff/login", staffLoginLimiter);
-app.use("/auth", rateLimit({ windowMs: 15 * 60 * 1000, limit: 100 }));
+app.use("/auth", rateLimit({ windowMs: 15 * 60 * 1000, limit: 100, skip: skipLT }));
 // AI explanations cost money and are slow: 15 per minute per login
 app.use("/quiz/explain", rateLimit({ windowMs: 60 * 1000, limit: 15, keyGenerator: (req) => req.headers.authorization || ipKeyGenerator(req.ip) }));
 app.use("/quiz", perMinute(600));
@@ -69,7 +72,7 @@ app.use("/admin", perMinute(120));
 app.use("/superadmin", perMinute(120));
 app.use("/dashboard", perMinute(120));
 // proctoring events: counted per login (not per IP), so a classroom behind one IP is not blocked together
-app.use("/api/anti-cheat", rateLimit({ windowMs: 60 * 1000, limit: 300, keyGenerator: (req) => req.headers.authorization || ipKeyGenerator(req.ip) }));
+app.use("/api/anti-cheat", rateLimit({ windowMs: 60 * 1000, limit: 300, skip: skipLT, keyGenerator: (req) => req.headers.authorization || ipKeyGenerator(req.ip) }));
 app.use(passport.initialize());
 // app.use(express.static(path.join(__dirname, "../FRONTEND")));
 

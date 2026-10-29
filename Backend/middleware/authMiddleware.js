@@ -28,9 +28,9 @@ const protect = async (req, res, next) => {
     const decoded = jwt.verify(token, process.env.JWT_SECRET, { algorithms: ["HS256"] });
     const scope = decoded.scope === "staff" ? "staff" : "public";   // tokens issued before this change have no scope = public
 
-    const user = await User.findById(decoded.id).select(
-      "-password -resetPasswordToken -resetPasswordExpire"
-    );
+        const user = await User.findById(decoded.id)
+      .select("fullname username email bio skills role disabled teacherApproved tokensValidAfter")
+      .lean();
 
     if (!user) {
       return res.status(401).json({

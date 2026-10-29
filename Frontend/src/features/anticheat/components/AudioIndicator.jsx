@@ -24,7 +24,7 @@ const AudioIndicator = ({
       case 'error': return '❌';
       case 'ready': return '🎤';
       case 'speaking': return '🔊';
-      case 'active': return '🎯';
+      case 'active': return '🎙️';
       case 'inactive': return '🎤';
       default: return '🎤';
     }

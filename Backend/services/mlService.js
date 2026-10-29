@@ -10,9 +10,9 @@ const client = axios.create({
 
 const LABEL_ABILITY = { easy: -1, medium: 0, hard: 1 };
 
-async function call(path, body) {
+async function call(path, body, opts = {}) {
   try {
-    const { data } = await client.post(path, body);
+    const { data } = await client.post(path, body, opts);
     return data;
   } catch (error) {
     console.error(`ML ${path} failed:`, error.response?.data || error.message);
@@ -52,7 +52,7 @@ exports.updateState = (body) => call("/update-state", body);
 exports.estimateLevel = (items) => call("/estimate-level", { items });
 
 // What should this student study now? (see ml/src/planner.py)
-exports.studyPlan = (body) => call("/study-plan", body);
+exports.studyPlan = (body, opts) => call("/study-plan", body, opts);
 
 exports.tutorPlan = (topics) => call("/tutor/plan", { topics });
 exports.hint = (body) => call("/tutor/hint", body);

@@ -568,3 +568,85 @@
     height: 120px;
   }
 }
+
+/* ===== Theme restyle: matches the quiz pages (light + dark) ===== */
+.identity-verification-overlay {
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(8px);
+  z-index: 2000;
+}
+.identity-verification-modal {
+  background: var(--bg-color);
+  color: var(--text-color);
+  border: 1px solid color-mix(in srgb, var(--text-color) 12%, transparent);
+  border-radius: 24px;
+  max-width: 680px;
+  box-shadow: 0 30px 80px -20px rgba(0, 0, 0, 0.5);
+  font-family: "DM Sans", "Poppins", system-ui, sans-serif;
+}
+.verification-header { border-bottom: 0; padding: 1.75rem 2rem 0.5rem; }
+.verification-header h2,
+.capture-section h3,
+.verification-complete h3,
+.step span { color: var(--text-color); }
+.verification-header h2 { font-size: 1.5rem; }
+.verification-header p,
+.capture-section p,
+.verification-complete p { color: var(--subtext-color, #6b7280); font-size: 0.95rem; }
+.capture-section p { margin-bottom: 1.25rem; }
+
+/* steps */
+.verification-steps { gap: 2rem; padding: 0.75rem 2rem 1rem; }
+.step span { font-size: 0.8rem; }
+.step-icon {
+  width: 42px; height: 42px;
+  background: color-mix(in srgb, var(--text-color) 6%, transparent);
+  border: 1px solid color-mix(in srgb, var(--text-color) 15%, transparent);
+  color: var(--text-color);
+}
+.step.active .step-icon { background: var(--accent); border-color: var(--accent); color: #fff; box-shadow: 0 8px 20px -8px var(--accent); }
+.step.completed .step-icon { background: #16a34a; border-color: #16a34a; color: #fff; }
+body.dark-mode .step.active .step-icon { color: #000; }
+
+/* camera: responsive, always 4:3, guide perfectly centred */
+.camera-container {
+  display: block; width: 100%; max-width: 520px; margin: 0 auto 1.25rem;
+  aspect-ratio: 4 / 3; border-radius: 20px; background: #000;
+  border: 1px solid color-mix(in srgb, var(--text-color) 15%, transparent);
+  box-shadow: 0 20px 40px -20px rgba(0, 0, 0, 0.5);
+}
+.webcam-feed { width: 100% !important; height: 100% !important; object-fit: cover; border-radius: 0; }
+.camera-error { width: 100%; height: 100%; background: color-mix(in srgb, #dc2626 10%, var(--bg-color)); }
+.face-guide-overlay, .id-guide-overlay { display: flex; align-items: center; justify-content: center; }
+.face-guide-circle, .id-guide-rectangle {
+  position: static; transform: none;
+  border: 3px dashed var(--accent);
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.35);   /* dims everything outside the guide */
+  animation: idv-pulse 2s infinite;               /* own name: no clash with other CSS files */
+}
+.face-guide-circle { width: 46%; aspect-ratio: 1 / 1; border-radius: 50%; }
+.id-guide-rectangle { width: 64%; aspect-ratio: 1.586 / 1; border-radius: 12px; }
+@keyframes idv-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.45; } }
+
+/* buttons */
+.capture-btn, .start-quiz-btn, .mic-permission-btn, .retry-btn {
+  background: var(--accent); color: #fff; border-radius: 14px;
+  font-weight: 600; padding: 0.8rem 1.6rem;
+}
+body.dark-mode .capture-btn, body.dark-mode .start-quiz-btn,
+body.dark-mode .mic-permission-btn, body.dark-mode .retry-btn { color: #000; }
+.capture-btn:hover:not(:disabled), .start-quiz-btn:hover,
+.mic-permission-btn:hover:not(:disabled), .retry-btn:hover:not(:disabled) {
+  background: var(--accent); filter: brightness(1.05); box-shadow: 0 10px 24px -10px var(--accent);
+}
+.secondary-btn {
+  background: transparent; color: var(--text-color); border-radius: 14px; padding: 0.8rem 1.6rem;
+  border: 1px solid color-mix(in srgb, var(--text-color) 18%, transparent);
+}
+.secondary-btn:hover:not(:disabled) { background: color-mix(in srgb, var(--text-color) 6%, transparent); }
+
+/* microphone step */
+.mic-success, .mic-error, .mic-prompt { border-width: 1px; border-radius: 16px; color: var(--text-color); }
+.mic-prompt { background: color-mix(in srgb, var(--accent) 10%, transparent); border-color: var(--accent); }
+.mic-success { background: color-mix(in srgb, #16a34a 12%, transparent); border-color: #16a34a; }
+.mic-error { background: color-mix(in srgb, #dc2626 12%, transparent); border-color: #dc2626; }

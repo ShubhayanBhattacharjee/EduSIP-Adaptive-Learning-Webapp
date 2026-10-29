@@ -1,5 +1,5 @@
 // src/app/App.jsx
-import React from "react";
+import React, { lazy, Suspense } from "react";
 import {
   BrowserRouter as Router,
   Routes,
@@ -13,42 +13,41 @@ import { AuthProvider } from "../context/AuthContext";
 
 import Navbar from "../shared/layout/Navbar";
 import Footer from "../shared/layout/Footer";
-
-import GoogleSuccess from "../features/auth/GoogleSuccess";
-import Home from "../features/home/Home";
-import Login from "../features/auth/Login";
-import Register from "../features/auth/Register";
-import Dashboard from "../features/dashboard/Dashboard";
-import Profile from "../features/profile/Profile";
-import Quiz from "../features/quiz/Quiz";
 import ProtectedRoute from "./ProtectedRoute";
-import ForgotPassword from "../features/auth/ForgotPassword";
-import VerifyEmail from "../features/auth/VerifyEmail";
-import StaffLogin from "../features/auth/StaffLogin";
-import ResetPassword from "../features/auth/ResetPassword";
-import AdminDashboard from "../features/admin/AdminDashboard";
-import AddQuestion from "../features/admin/AddQuestion";
-import AdminAnalytics from "../features/admin/AdminAnalytics";
-import AdminQuestions from "../features/admin/AdminQuestions";
-import AdminReview from "../features/admin/AdminReview";
-import AdminGenerate from "../features/admin/AdminGenerate";
-import AdminTopics from "../features/admin/AdminTopics";
-import AdminPlacement from "../features/admin/AdminPlacement";
-import AdminUsers from "../features/admin/AdminUsers";
-import AdminSystem from "../features/admin/AdminSystem";
-import SuperDashboard from "../features/superadmin/SuperDashboard";
-import StaffManagement from "../features/superadmin/StaffManagement";
-import SuperClasses from "../features/superadmin/SuperClasses";
-import SuperAuditLog from "../features/superadmin/SuperAuditLog";
-import SuperSettings from "../features/superadmin/SuperSettings";
-import SuperMlControl from "../features/superadmin/SuperMlControl";
-import QuizReview from "../features/quiz/QuizReview";
-import Placement from "../features/placement/Placement";
-import TeacherDashboard from "../features/teacher/TeacherDashboard";
-import ClassView from "../features/teacher/ClassView";
-import StudentDetail from "../features/teacher/StudentDetail";
-
 import "./App.css";
+
+const GoogleSuccess = lazy(() => import("../features/auth/GoogleSuccess"));
+const Home = lazy(() => import("../features/home/Home"));
+const Login = lazy(() => import("../features/auth/Login"));
+const Register = lazy(() => import("../features/auth/Register"));
+const Dashboard = lazy(() => import("../features/dashboard/Dashboard"));
+const Profile = lazy(() => import("../features/profile/Profile"));
+const Quiz = lazy(() => import("../features/quiz/Quiz"));
+const ForgotPassword = lazy(() => import("../features/auth/ForgotPassword"));
+const VerifyEmail = lazy(() => import("../features/auth/VerifyEmail"));
+const StaffLogin = lazy(() => import("../features/auth/StaffLogin"));
+const ResetPassword = lazy(() => import("../features/auth/ResetPassword"));
+const AdminDashboard = lazy(() => import("../features/admin/AdminDashboard"));
+const AddQuestion = lazy(() => import("../features/admin/AddQuestion"));
+const AdminAnalytics = lazy(() => import("../features/admin/AdminAnalytics"));
+const AdminQuestions = lazy(() => import("../features/admin/AdminQuestions"));
+const AdminReview = lazy(() => import("../features/admin/AdminReview"));
+const AdminGenerate = lazy(() => import("../features/admin/AdminGenerate"));
+const AdminTopics = lazy(() => import("../features/admin/AdminTopics"));
+const AdminPlacement = lazy(() => import("../features/admin/AdminPlacement"));
+const AdminUsers = lazy(() => import("../features/admin/AdminUsers"));
+const AdminSystem = lazy(() => import("../features/admin/AdminSystem"));
+const SuperDashboard = lazy(() => import("../features/superadmin/SuperDashboard"));
+const StaffManagement = lazy(() => import("../features/superadmin/StaffManagement"));
+const SuperClasses = lazy(() => import("../features/superadmin/SuperClasses"));
+const SuperAuditLog = lazy(() => import("../features/superadmin/SuperAuditLog"));
+const SuperSettings = lazy(() => import("../features/superadmin/SuperSettings"));
+const SuperMlControl = lazy(() => import("../features/superadmin/SuperMlControl"));
+const QuizReview = lazy(() => import("../features/quiz/QuizReview"));
+const Placement = lazy(() => import("../features/placement/Placement"));
+const TeacherDashboard = lazy(() => import("../features/teacher/TeacherDashboard"));
+const ClassView = lazy(() => import("../features/teacher/ClassView"));
+const StudentDetail = lazy(() => import("../features/teacher/StudentDetail"));
 
 // Pages only a super admin may open. An admin who types the address is sent back to the admin area.
 const Super = ({ children }) => <ProtectedRoute role="superadmin">{children}</ProtectedRoute>;
@@ -73,7 +72,8 @@ function App() {
   return (
     <ThemeProvider>
       <AuthProvider>
-        <Router>
+                <Router>
+          <Suspense fallback={<div style={{ padding: "4rem", textAlign: "center" }}>Loading…</div>}>
           <Routes>
             
             <Route element={<AppLayout />}>
@@ -158,7 +158,8 @@ function App() {
 
             {/* Fallback */}
             <Route path="*" element={<Navigate to="/" />} />
-          </Routes>
+                    </Routes>
+          </Suspense>
         </Router>
       </AuthProvider>
     </ThemeProvider>

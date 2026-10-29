@@ -1,6 +1,6 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import Webcam from 'react-webcam';
-import { Camera, Check, User, CreditCard, AlertCircle } from 'lucide-react';
+import { Camera, Check, User, CreditCard, AlertCircle, Mic } from 'lucide-react';
 import './IdentityVerification.css';
 
 const IdentityVerification = ({ onVerificationComplete, onClose }) => {
@@ -67,13 +67,6 @@ const IdentityVerification = ({ onVerificationComplete, onClose }) => {
     } finally {
       setIsProcessing(false);
     }
-  };
-
-  // Handle skip verification
-  const handleSkipVerification = () => {
-    console.log('⏭️ Skipping identity verification');
-    // When skipping, go directly to microphone step
-    setCurrentStep('microphone');
   };
 
   const videoConstraints = {
@@ -184,6 +177,13 @@ const IdentityVerification = ({ onVerificationComplete, onClose }) => {
             </div>
             <span>ID Verification</span>
           </div>
+
+                    <div className={`step ${micPermission === 'granted' ? 'completed' : ''} ${currentStep === 'microphone' ? 'active' : ''}`}>
+            <div className="step-icon">
+              {micPermission === 'granted' ? <Check /> : <Mic />}
+            </div>
+            <span>Microphone</span>
+          </div>
         </div>
 
         <div className="verification-content">
@@ -225,13 +225,6 @@ const IdentityVerification = ({ onVerificationComplete, onClose }) => {
                 >
                   <Camera size={20} />
                   {isProcessing ? 'Processing...' : 'Capture Photo'}
-                </button>
-                <button
-                  className="skip-btn"
-                  onClick={handleSkipVerification}
-                  disabled={isProcessing}
-                >
-                  Skip Verification
                 </button>
               </div>
             </div>
@@ -282,13 +275,6 @@ const IdentityVerification = ({ onVerificationComplete, onClose }) => {
                 >
                   <Camera size={20} />
                   {isProcessing ? 'Processing...' : 'Capture ID'}
-                </button>
-                <button
-                  className="skip-btn"
-                  onClick={handleSkipVerification}
-                  disabled={isProcessing}
-                >
-                  Skip Verification
                 </button>
               </div>
             </div>
@@ -356,13 +342,6 @@ const IdentityVerification = ({ onVerificationComplete, onClose }) => {
                   disabled={isProcessing}
                 >
                   Back
-                </button>
-                <button
-                  className="skip-btn"
-                  onClick={handleSkipVerification}
-                  disabled={isProcessing}
-                >
-                  Skip Verification
                 </button>
               </div>
             </div>

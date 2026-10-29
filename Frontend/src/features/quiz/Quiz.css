@@ -337,3 +337,19 @@ body.dark-mode .qx-check::after { border-color: #000; }
 @media (prefers-reduced-motion: reduce) {
   .qx * { animation: none !important; transition: none !important; }
 }
+
+/* ===== camera box: fills the whole box, no black strip, "LIVE" tag ===== */
+.qx-cam { border-radius: 18px; border: 2px solid color-mix(in srgb, var(--accent) 55%, transparent); }
+.qx-cam .webcam-stream { max-width: none; border-radius: 0; box-shadow: none; }
+.qx-cam .video-container { height: 100%; padding-bottom: 0; }
+.qx-cam .webcam-video { border-radius: 0; }
+.qx-cam::after {
+  content: "● LIVE";
+  position: absolute; top: 8px; left: 10px; z-index: 2;
+  font-size: 10px; font-weight: 700; letter-spacing: .08em; color: #fff;
+  background: rgba(220, 38, 38, .92); padding: 2px 8px; border-radius: 999px;
+  pointer-events: none;
+}
+@media (min-width: 641px) {
+  .qx-cam { width: 220px; height: 165px; }
+}

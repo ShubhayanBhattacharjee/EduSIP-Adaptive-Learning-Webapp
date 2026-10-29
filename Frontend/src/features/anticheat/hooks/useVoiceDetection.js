@@ -1,267 +1,143 @@
-import API_URL from "../../../config";
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback } from "react";
 
-const useVoiceDetection = (isActive = false) => {
+const SPEECH_BAND = [85, 3000];     // Hz, where human speech sits (ignores fan hum and high hiss)
+const START_LEVEL = 0.08;
+const STOP_LEVEL = 0.05;
+const SUSTAIN_MS = 1000;             // talking for ~1 s counts
+const COOLDOWN_MS = 5000;           // one strike per 5 s at mostS = 10000;          // one report per 10 s at most
+
+/**
+ * Microphone check. onViolation("audio", details) is called when someone talks for about a second or more.
+ */
+const useVoiceDetection = (isActive = false, onViolation) => {
   const [isInitialized, setIsInitialized] = useState(false);
   const [isDetecting, setIsDetecting] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [violations, setViolations] = useState([]);
   const [error, setError] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
-  
-  const audioContextRef = useRef(null);
+
+  const ctxRef = useRef(null);
   const analyserRef = useRef(null);
-  const microphoneRef = useRef(null);
+  const sourceRef = useRef(null);
   const streamRef = useRef(null);
-  const animationFrameRef = useRef(null);
-  const speakingStartTimeRef = useRef(null);
-  const violationCountRef = useRef(0);
+  const rafRef = useRef(null);
+  const loudSinceRef = useRef(null);
+  const lastReportRef = useRef(0);
+  const speakingRef = useRef(false);
+  const runningRef = useRef(false);
+  const noiseRef = useRef(null);      // learned background-noise level
+  const onViolationRef = useRef(onViolation);
+  onViolationRef.current = onViolation;
 
-  // Voice detection thresholds
-  const SPEAKING_THRESHOLD = 0.2; // Increased from 0.1 to 0.2 (20% of max volume)
-  const SILENCE_THRESHOLD = 0.1; // Increased from 0.05 to 0.1 (10% of max volume)
+  const loop = useCallback(() => {
+    if (!runningRef.current || !analyserRef.current) return;
+    const analyser = analyserRef.current;
+    const data = new Uint8Array(analyser.frequencyBinCount);
+    analyser.getByteFrequencyData(data);
 
-  // Handle speech violation (called immediately when speech starts)
-  const handleViolation = useCallback(() => {
-    const violation = {
-      id: `voice-${Date.now()}-${Math.random()}`,
-      type: 'VOICE_ACTIVITY',
-      label: 'Speaking Detected',
-      confidence: 0.8, // High confidence for immediate detection
-      timestamp: new Date().toISOString(),
-      severity: 'MEDIUM',
-      duration: 0, // Will be updated when speech ends
-      message: 'Speaking detected during quiz'
-    };
-    
-    setViolations(prev => [...prev, violation]);
-    violationCountRef.current += 1;
-    
-    console.warn(`🚨 VOICE VIOLATION: Speaking detected immediately`);
-    
-    // Log to backend immediately
-    fetch(`${API_URL}/api/anti-cheat/log-event`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${localStorage.getItem('token')}`
-      },
-      body: JSON.stringify({
-        eventType: 'VOICE_ACTIVITY_VIOLATION',
-        details: {
-          violationType: 'VOICE_ACTIVITY',
-          message: violation.message
-        },
-        timestamp: violation.timestamp,
-        violationCount: violationCountRef.current
-      })
-    }).catch(error => {
-      console.error('Failed to log voice violation:', error);
-    });
+    const hzPerBin = ctxRef.current.sampleRate / analyser.fftSize;
+    const from = Math.max(0, Math.floor(SPEECH_BAND[0] / hzPerBin));
+    const to = Math.min(data.length - 1, Math.ceil(SPEECH_BAND[1] / hzPerBin));
+    let sum = 0;
+    for (let i = from; i <= to; i++) sum += data[i];
+    const level = sum / (to - from + 1) / 255;
+    const now = Date.now();
+
+    if (noiseRef.current === null) noiseRef.current = level;
+const floor = noiseRef.current;
+const startAt = Math.max(START_LEVEL, floor + 0.06);   // must rise clearly above the room noise
+const stopAt = Math.max(STOP_LEVEL, floor + 0.03);
+const loud = speakingRef.current ? level > stopAt : level > startAt;
+if (!loud) noiseRef.current = floor * 0.98 + level * 0.02;   // keep learning the room noise while quiet
+    if (loud) {
+      if (!loudSinceRef.current) loudSinceRef.current = now;
+      if (!speakingRef.current && now - loudSinceRef.current >= SUSTAIN_MS) {
+        speakingRef.current = true;
+        setIsSpeaking(true);
+        if (now - lastReportRef.current >= COOLDOWN_MS) {
+          lastReportRef.current = now;
+          const v = { id: `voice-${now}`, type: "audio", label: "Speaking detected", timestamp: new Date(now).toISOString(), severity: "MEDIUM", message: "Speaking detected during quiz" };
+          setViolations((prev) => [...prev, v]);
+          if (onViolationRef.current) onViolationRef.current("audio", { level: Number(level.toFixed(2)) });
+        }
+      }
+    } else {
+      loudSinceRef.current = null;
+      if (speakingRef.current) { speakingRef.current = false; setIsSpeaking(false); }
+    }
+    rafRef.current = requestAnimationFrame(loop);
   }, []);
 
-  // Analyze audio for speaking
-  const analyzeAudio = useCallback(() => {
-    if (!analyserRef.current || !isDetecting) return;
-
-    const dataArray = new Uint8Array(analyserRef.current.frequencyBinCount);
-    analyserRef.current.getByteFrequencyData(dataArray);
-
-    // Calculate average volume
-    const average = dataArray.reduce((sum, value) => sum + value, 0) / dataArray.length;
-    const normalizedVolume = average / 255; // Normalize to 0-1
-
-    const currentTime = Date.now();
-    
-    if (normalizedVolume > SPEAKING_THRESHOLD) {
-      // Speaking detected
-      if (!speakingStartTimeRef.current) {
-        speakingStartTimeRef.current = currentTime;
-        setIsSpeaking(true);
-        console.log('🎤 Speech started');
-        
-        // Add violation immediately when speech starts (like other monitoring features)
-        handleViolation();
-      }
-    } else if (normalizedVolume < SILENCE_THRESHOLD && speakingStartTimeRef.current) {
-      // Silence detected after speaking
-      const speakingDuration = currentTime - speakingStartTimeRef.current;
-      
-      // Optional: Log duration for debugging but don't add another violation
-      console.log(`🔇 Speech ended after ${Math.round(speakingDuration / 1000)}s`);
-      
-      speakingStartTimeRef.current = null;
-      setIsSpeaking(false);
-    }
-
-    // Continue analysis
-    if (isDetecting) {
-      animationFrameRef.current = requestAnimationFrame(analyzeAudio);
-    }
-  }, [isDetecting, handleViolation]);
-
-  // Initialize voice detection
   const initializeVAD = useCallback(async () => {
+    if (streamRef.current) return;
+    setIsLoading(true);
+    setError(null);
     try {
-      setIsLoading(true);
-      setError(null);
-      
-      console.log('🎤 Initializing Voice Activity Detection...');
-      
-      // Request microphone access
       const stream = await navigator.mediaDevices.getUserMedia({
-        audio: {
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true,
-          sampleRate: 16000
-        }
+        audio: { echoCancellation: true, noiseSuppression: false, autoGainControl: false },   // keep real loudness, do not hide quiet talking
       });
-      
-      streamRef.current = stream;
-      
-      // Create audio context
-      const audioContext = new (window.AudioContext || window.webkitAudioContext)({
-        sampleRate: 16000
-      });
-      
-      audioContextRef.current = audioContext;
-      
-      // Create analyser
-      const analyser = audioContext.createAnalyser();
-      analyser.fftSize = 256;
-      analyser.smoothingTimeConstant = 0.8;
-      
-      analyserRef.current = analyser;
-      
-      // Connect microphone to analyser
-      const source = audioContext.createMediaStreamSource(stream);
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      if (ctx.state === "suspended") await ctx.resume().catch(() => {});
+      const analyser = ctx.createAnalyser();
+      analyser.fftSize = 1024;
+      analyser.smoothingTimeConstant = 0.6;
+      const source = ctx.createMediaStreamSource(stream);
       source.connect(analyser);
-      
-      microphoneRef.current = source;
-      
+      streamRef.current = stream; ctxRef.current = ctx; analyserRef.current = analyser; sourceRef.current = source;
       setIsInitialized(true);
-      console.log('✅ Voice Activity Detection initialized successfully');
-      
-    } catch (error) {
-      console.error('❌ Failed to initialize VAD:', error);
-      
-      let errorMessage = 'Failed to initialize voice detection';
-      if (error.name === 'NotAllowedError') {
-        errorMessage = 'Microphone permission denied. Please allow microphone access.';
-      } else if (error.name === 'NotFoundError') {
-        errorMessage = 'No microphone found. Please connect a microphone.';
-      } else if (error.name === 'NotReadableError') {
-        errorMessage = 'Microphone is already in use by another application.';
-      }
-      
-      setError(errorMessage);
+    } catch (e) {
+      let msg = "Failed to initialize voice detection";
+      if (e.name === "NotAllowedError") msg = "Microphone permission denied. Please allow microphone access.";
+      else if (e.name === "NotFoundError") msg = "No microphone found. Please connect a microphone.";
+      else if (e.name === "NotReadableError") msg = "Microphone is already in use by another application.";
+      setError(msg);
     } finally {
       setIsLoading(false);
     }
   }, []);
-
-  // Start voice detection
-  const startDetection = useCallback(() => {
-    if (!isInitialized) {
-      return;
-    }
-    
-    setIsDetecting(true);
-    console.log('🎯 Starting voice activity detection...');
-    
-    // Start audio analysis
-    animationFrameRef.current = requestAnimationFrame(analyzeAudio);
-  }, [isInitialized, analyzeAudio]);
-
-  // Stop voice detection
+noiseRef.current = null;
   const stopDetection = useCallback(() => {
+    runningRef.current = false;
+    if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    rafRef.current = null;
+    loudSinceRef.current = null;
+    speakingRef.current = false;
     setIsDetecting(false);
     setIsSpeaking(false);
-    console.log('⏹️ Stopping voice activity detection...');
-    
-    if (animationFrameRef.current) {
-      cancelAnimationFrame(animationFrameRef.current);
-      animationFrameRef.current = null;
-    }
-    
-    speakingStartTimeRef.current = null;
   }, []);
 
-  // Cleanup resources
+  const startDetection = useCallback(() => {
+    if (runningRef.current || !analyserRef.current) return;
+    runningRef.current = true;
+    setIsDetecting(true);
+    rafRef.current = requestAnimationFrame(loop);
+  }, [loop]);
+
   const cleanup = useCallback(() => {
     stopDetection();
-    
-    if (microphoneRef.current) {
-      try {
-        microphoneRef.current.disconnect();
-      } catch (error) {
-        console.log('Error disconnecting microphone:', error);
-      }
-      microphoneRef.current = null;
-    }
-    
-    if (audioContextRef.current) {
-      try {
-        audioContextRef.current.close();
-      } catch (error) {
-        console.log('Error closing audio context:', error);
-      }
-      audioContextRef.current = null;
-    }
-    
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach(track => {
-        track.stop();
-      });
-      streamRef.current = null;
-    }
-    
+    try { sourceRef.current && sourceRef.current.disconnect(); } catch (e) { /* ignore */ }
+    try { ctxRef.current && ctxRef.current.close(); } catch (e) { /* ignore */ }
+    if (streamRef.current) streamRef.current.getTracks().forEach((t) => t.stop());
+    sourceRef.current = ctxRef.current = analyserRef.current = streamRef.current = null;
     setIsInitialized(false);
-    setViolations([]);
-    violationCountRef.current = 0;
   }, [stopDetection]);
 
-  // Auto-initialize when active
-  useEffect(() => {
-    if (isActive && !isInitialized) {
-      initializeVAD();
-    }
-  }, [isActive, isInitialized, initializeVAD]);
+  useEffect(() => { if (isActive && !streamRef.current) initializeVAD(); }, [isActive, initializeVAD]);
 
-  // Auto-start/stop detection based on active state
   useEffect(() => {
-    if (isActive && isInitialized) {
-      startDetection();
-    } else {
-      stopDetection();
-    }
+    if (isActive && isInitialized) startDetection();
+    else stopDetection();
   }, [isActive, isInitialized, startDetection, stopDetection]);
 
-  // Cleanup on unmount
-  useEffect(() => {
-    return cleanup;
-  }, [cleanup]);
+  // when the quiz stops, release the microphone (the browser's red recording dot goes away)
+  useEffect(() => { if (!isActive) cleanup(); }, [isActive, cleanup]);
+  useEffect(() => cleanup, [cleanup]);
 
   return {
-    // State
-    isInitialized,
-    isDetecting,
-    isSpeaking,
-    violations,
-    error,
-    isLoading,
-    
-    // Actions
-    initializeVAD,
-    startDetection,
-    stopDetection,
-    cleanup,
-    
-    // Computed values
-    hasViolations: violations.length > 0,
-    violationCount: violations.length,
-    isMicrophoneActive: isDetecting
+    isInitialized, isDetecting, isSpeaking, violations, error, isLoading,
+    initializeVAD, startDetection, stopDetection, cleanup,
+    hasViolations: violations.length > 0, violationCount: violations.length, isMicrophoneActive: isDetecting,
   };
 };
 

@@ -104,7 +104,7 @@ const Placement = () => {
   const [result, setResult] = useState(null); // placement summary
   const [showExit, setShowExit] = useState(false);
 
-  const { warning, clearWarning, stopProctoring, markQuizCompleted } = useProctoring(phase === "running");
+  const { warning, clearWarning, stopProctoring, markQuizCompleted } = useProctoring(phase === "running", { sessionId });
 
   /* hide navbar + footer while the test is running */
   useEffect(() => {

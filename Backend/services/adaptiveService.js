@@ -38,7 +38,8 @@ const RECENT_DAYS = 3;                    // avoid repeating a question seen in 
 // Weight of each proctoring event. Unknown event types count as 1.
 const EVENT_WEIGHT = {
   tab_switch: 1, window_blur: 0.5, fullscreen_exit: 1, copy_paste: 1,
-  multiple_faces: 2, forbidden_object: 2, gaze_away: 0.5, audio: 1,
+  multiple_faces: 2, forbidden_object: 2, no_face: 0.5, gaze_away: 0.5, audio: 1,
+  devtools_attempt: 0.5, quiz_terminated: 0,
 };
 
 const escapeRegex = (s) => String(s).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -223,8 +224,8 @@ async function findRemedial({ userId, subject, topic }) {
    STUDY PLAN for one student: what to study now, how many questions, how many minutes.
    Used by GET /quiz/study-plan and by the dashboard. Returns null if the ML service is down.
 ------------------------------------------------------------------ */
-async function buildStudyPlan(userId, { minutes = 30, subject } = {}) {
-  const filter = { user: userId, topic: { $ne: OVERALL } };
+async function buildStudyPlan(userId, { minutes = 30, subject, timeoutMs } = {}) {
+    const filter = { user: userId, topic: { $ne: OVERALL } };
   if (subject) filter.subject = ci(subject);
   const states = await SkillState.find(filter).lean();
   if (!states.length) return { empty: true, plan: { headline: "No topics yet. Take the level test first.", plan: [], topics: [], subjects: [] } };
@@ -252,8 +253,11 @@ async function buildStudyPlan(userId, { minutes = 30, subject } = {}) {
     days_since_last: s.lastPracticedAt ? Math.max(0, (now - new Date(s.lastPracticedAt).getTime()) / 864e5) : null,
     weight: 1, prerequisites: prereq.get(`${s.subject}|${s.topic}`) || [], placed: !!s.placed,
   }));
-  const plan = await ml.studyPlan({ topics, minutes, seconds_per_question: Math.min(Math.max(avg, 20), 600) });
-  return plan ? { empty: false, plan } : null;
+  const plan = await ml.studyPlan(
+    { topics, minutes, seconds_per_question: Math.min(Math.max(avg, 20), 600) },
+    timeoutMs ? { timeout: timeoutMs } : undefined
+  );
+    return plan ? { empty: false, plan } : null;
 }
 
 // The single "start here" card: first item of the plan, in plain fields the frontend can show.

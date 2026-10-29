@@ -71,8 +71,10 @@ const userSchema = new mongoose.Schema({
 }, { timestamps: true }
 );
 
-module.exports = mongoose.model("User", userSchema);
-// Model Constructor Function. is mongoose.model()
+userSchema.index({ createdAt: -1 });   // "new users in the last 7 / 30 days"
+userSchema.index({ role: 1 });         // counts and lists by role
+
+module.exports = mongoose.model("User", userSchema);// Model Constructor Function. is mongoose.model()
 // Creates a model named "User"
 // Automatically creates a collection named "users" (lowercase + plural)
 // Connects schema to that collection

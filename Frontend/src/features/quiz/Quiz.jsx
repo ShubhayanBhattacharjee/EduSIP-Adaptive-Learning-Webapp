@@ -9,7 +9,6 @@ import QuizTerminationModal from "../anticheat/components/QuizTerminationModal";
 import WebcamStream from "../anticheat/components/WebcamStream";
 import ObjectDetectionOverlay from "../anticheat/components/ObjectDetectionOverlay";
 import AudioIndicator from "../anticheat/components/AudioIndicator";
-import SpeakingWarning from "../anticheat/components/SpeakingWarning";
 import useObjectDetection from "../anticheat/hooks/useObjectDetection";
 import useVoiceDetection from "../anticheat/hooks/useVoiceDetection";
 import useProctoring from "../anticheat/hooks/useProctoring";
@@ -94,24 +93,28 @@ const Quiz = () => {
 
   /* ── proctoring ── */
   const [webcamEnabled, setWebcamEnabled] = useState(false);
-  const [speakingWarning, setSpeakingWarning] = useState(null);
   const [showExit, setShowExit] = useState(false);
+  const proctorOn = quizStarted && !quizCompleted;
   const {
     warning: proctoringWarning,
-    violationCount: proctoringViolationCount,
+    violationCount: totalViolationCount,
     shouldTerminate,
     clearWarning: clearProctoringWarning,
     stopProctoring,
     markQuizCompleted: markProctoringCompleted,
-  } = useProctoring(quizStarted && !quizCompleted);
+    reportViolation,
+    forceTerminate,
+  } = useProctoring(proctorOn, { sessionId });
 
+  // camera and microphone stop as soon as the quiz is over or terminated
+  const sensorsOn = proctorOn && !shouldTerminate;
   const {
     detections,
-    violations,
     isInitialized: detectionReady,
     isDetecting,
+    error: cameraCheckError,
     videoRef: detectionVideoRef,
-  } = useObjectDetection(quizStarted && webcamEnabled && !quizCompleted);
+  } = useObjectDetection(sensorsOn && webcamEnabled, reportViolation);
 
   const {
     isInitialized: voiceReady,
@@ -120,16 +123,18 @@ const Quiz = () => {
     violations: voiceViolations,
     error: voiceError,
     isLoading: voiceLoading,
-  } = useVoiceDetection(quizStarted && !quizCompleted);
+  } = useVoiceDetection(sensorsOn, reportViolation);
 
-  const totalViolationCount = proctoringViolationCount + violations.length + voiceViolations.length;
+  const handleVideoRef = useCallback((el) => { detectionVideoRef.current = el; }, [detectionVideoRef]);
 
+  // Too many violations: the browser asks the server to close the session, then shows the termination screen.
+  const terminatedOnce = useRef(false);
   useEffect(() => {
-    if (voiceViolations.length > 0) {
-      const latest = voiceViolations[voiceViolations.length - 1];
-      if (!speakingWarning || speakingWarning.id !== latest.id) setSpeakingWarning(latest);
-    }
-  }, [voiceViolations, speakingWarning]);
+    if (!shouldTerminate || terminatedOnce.current || !sessionId) return;
+    terminatedOnce.current = true;
+    quizApi.finish({ sessionId, subject: selectedSubject, topic: selectedTopic }).catch(() => {});
+    stopProctoring();
+  }, [shouldTerminate, sessionId, selectedSubject, selectedTopic, stopProctoring]);
 
   useEffect(() => {
     if (!location.pathname.includes("/quiz") && quizStarted) stopProctoring();
@@ -265,7 +270,7 @@ const Quiz = () => {
 
   const handleVerificationComplete = (data) => {
     setShowIdentityVerification(false);
-    setWebcamEnabled(!!(data && (data.userPhoto || data.idPhoto)));
+    setWebcamEnabled(true);   // camera monitoring must run even if the photo step was skipped
     if (verifyFor === "resume") resumeQuiz();
     else launchQuiz();
   };
@@ -357,6 +362,7 @@ const Quiz = () => {
         hintUsed: hints.length > 0,
       });
     } catch (err) {
+      if (err.code === "SESSION_TERMINATED") forceTerminate();
       setNotice(err.message || "Could not save your answer. Please try again.");
       setIsTransitioning(false);
       return;
@@ -570,17 +576,16 @@ const Quiz = () => {
   return (
     <div className="qx qx--focus">
       <ProctoringWarning warning={proctoringWarning} onClear={clearProctoringWarning} />
-      <SpeakingWarning violation={speakingWarning} onClear={() => setSpeakingWarning(null)} autoClear />
       {shouldTerminate && (
-        <QuizTerminationModal onGoToDashboard={() => navigate("/dashboard")} violationCount={totalViolationCount} />
+        <QuizTerminationModal onGoToDashboard={() => navigate("/dashboard")} violationCount={Math.max(totalViolationCount, 3)} />
       )}
 
       {/* webcam + object detection (bottom-right, fixed) */}
       {webcamEnabled && (
         <div className="qx-cam">
           <WebcamStream
-            isActive={quizStarted && !quizCompleted}
-            onVideoRef={(ref) => { detectionVideoRef.current = ref; }}
+            isActive={sensorsOn}
+            onVideoRef={handleVideoRef}
             onError={(e) => console.error("Webcam error:", e)}
             showControls={false}
           />
@@ -589,6 +594,8 @@ const Quiz = () => {
           )}
         </div>
       )}
+
+      {(cameraCheckError || voiceError) && <p className="qx-error" role="alert">{cameraCheckError || voiceError}</p>}
 
       {/* voice indicator (bottom-left, fixed) */}
       <AudioIndicator
@@ -608,7 +615,7 @@ const Quiz = () => {
           <span className="qx-qlabel">Question <b>{currentQuestion}</b> of {total}</span>
 
           <div className="qx-top-right">
-            {totalViolationCount > 0 && <span className="qx-warn">⚠ {totalViolationCount}/3</span>}
+            {totalViolationCount > 0 && <span className="qx-warn">⚠ {Math.min(totalViolationCount, 3)}/3</span>}
             <span className={`qx-clock ${lowTime ? "low" : ""}`}>
               {hasLimit ? `⏱ ${fmt(secondsLeft)}` : fmt(timer)}
             </span>

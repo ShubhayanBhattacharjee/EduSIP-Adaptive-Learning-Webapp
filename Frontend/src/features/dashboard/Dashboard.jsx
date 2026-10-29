@@ -29,6 +29,22 @@ const initialView = () => {
   return VIEW_IDS.includes(h) ? h : "overview";
 };
 
+/* last dashboard, kept for this tab, so coming back shows it instantly while fresh data loads */
+const CACHE_KEY = "db_cache_v1";
+const tokenTag = () => (localStorage.getItem("token") || "").slice(-24);
+const readCache = () => {
+  try {
+    const c = JSON.parse(sessionStorage.getItem(CACHE_KEY) || "null");
+    return c && c.tag === tokenTag() ? c : null;
+  } catch { return null; }
+};
+const writeCache = (patch) => {
+  try {
+    const c = readCache() || { tag: tokenTag() };
+    sessionStorage.setItem(CACHE_KEY, JSON.stringify({ ...c, ...patch }));
+  } catch { /* storage can be blocked or full */ }
+};
+
 const GOAL_KEY = "db_daily_goal";
 const readGoal = () => {
   try {
@@ -103,10 +119,11 @@ const ChartCard = ({ title, tag, empty, span = 4, children }) => (
 const Dashboard = () => {
   const navigate = useNavigate();
 
-  const [analytics, setAnalytics] = useState(null);
-  const [performance, setPerformance] = useState(null);
-  const [quizHistory, setQuizHistory] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const cached = useRef(readCache()).current;
+  const [analytics, setAnalytics] = useState(cached?.analytics || null);
+  const [performance, setPerformance] = useState(cached?.analytics?.performance || null);
+  const [quizHistory, setQuizHistory] = useState(cached?.history || []);
+  const [loading, setLoading] = useState(!cached?.analytics);
   const [loadError, setLoadError] = useState("");
   const [showAll, setShowAll] = useState(false);
   const [goal, setGoal] = useState(readGoal);
@@ -117,22 +134,22 @@ const Dashboard = () => {
 
   const fetchData = useCallback(async () => {
     const headers = { Authorization: `Bearer ${token}` };
-    try {
-      const [aRes, pRes, hRes] = await Promise.all([
-        fetch(`${API_URL}/dashboard/analytics`, { headers }),
-        fetch(`${API_URL}/dashboard/performance`, { headers }),
-        fetch(`${API_URL}/quiz/history`, { headers }).catch(() => null),
-      ]);
-      const aData = await aRes.json();
-      const pData = await pRes.json();
-      const hData = hRes ? await hRes.json().catch(() => ({})) : {};
+    const get = (path) => fetch(`${API_URL}${path}`, { headers }).then((r) => r.json());
 
-      if (hData.success) setQuizHistory(hData.history || []);
+    // start both together, but do not wait for quiz history before showing the page
+    const aReq = get("/dashboard/analytics");
+    get("/quiz/history")
+      .then((h) => { if (h.success) { setQuizHistory(h.history || []); writeCache({ history: h.history || [] }); } })
+      .catch(() => {});
+
+    try {
+      const aData = await aReq;
       setAnalytics(aData.success ? aData : null);
-      setPerformance(pData.success ? pData : null);
+      if (aData.success) { setPerformance(aData.performance || null); writeCache({ analytics: aData }); }
       setLoadError(aData.success ? "" : aData.message || "Could not load your dashboard.");
     } catch (e) {
       console.error(e);
+      // keep showing the cached dashboard if we have one
       setLoadError("Cannot reach the server. Check your connection.");
     } finally {
       setLoading(false);

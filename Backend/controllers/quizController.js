@@ -135,6 +135,12 @@ exports.submitAnswer = async (req, res) => {
         || !Number.isInteger(picked) || picked < 0 || picked > 3) {
       return res.status(400).json({ success: false, message: "questionId, sessionId and selectedAnswer (0-3) are required" });
     }
+    // Too many proctoring strikes in this session: the server refuses more answers (the browser cannot skip this check).
+    const antiCheat = require("../routes/antiCheatRoutes");
+    await antiCheat.checkHeartbeat(userId, sessionId);     // silent browser = a strike
+    if (await antiCheat.strikesFor(userId, sessionId) >= antiCheat.MAX_STRIKES) {
+      return res.status(403).json({ success: false, code: "SESSION_TERMINATED", message: "This session was ended because of repeated rule violations" });
+    }
     const question = await Question.findById(questionId);
     if (!question) return res.status(404).json({ success: false, message: "Question not found" });
 
@@ -517,7 +523,8 @@ exports.getQuizHistory = async (req, res) => {
   try {
     const history = await QuizAttempt.find({ user: req.user.id })
       .sort({ createdAt: -1 })
-      .select("subject topic mode totalQuestions correctAnswers accuracy createdAt");
+            .select("subject topic mode totalQuestions correctAnswers accuracy createdAt")
+      .lean();
     res.json({ success: true, history });
   } catch {
     res.status(500).json({ success: false });

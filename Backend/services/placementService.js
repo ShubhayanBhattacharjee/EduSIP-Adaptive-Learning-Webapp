@@ -205,14 +205,49 @@ async function liveLevel(userId, placementDoc) {
   };
 }
 
-// Everything the dashboard needs about "where am I and what next".
+// The "start here" card comes from the ML service, which can be slow (or asleep on a free host).
+// The dashboard must NEVER wait for it, so this is stale-while-revalidate:
+//   - fresh cache  -> use it
+//   - stale cache  -> use it now, refresh in the background
+//   - no cache     -> start the fetch in the background and give it a short head start (WAIT_MS)
+// Whatever is not ready in time is simply missing this time and is there on the next load.
+const startHereCache = new Map();
+const inflight = new Map();
+const START_OK_MS = 5 * 60 * 1000;    // treat as fresh for 5 minutes
+const START_FAIL_MS = 30 * 1000;      // after a failure, do not retry for 30 s
+const WAIT_MS = 700;                  // how long a first-ever load may wait for ML
+
+function refreshStartHere(userId, minutes, key) {
+  if (inflight.has(key)) return inflight.get(key);
+  const p = adaptive.buildStudyPlan(userId, { minutes, timeoutMs: 2500 })
+    .then((plan) => {
+      const value = plan && !plan.empty ? adaptive.startHere(plan.plan) : null;
+      if (startHereCache.size > 5000) startHereCache.clear();   // never let it grow without limit
+      const old = startHereCache.get(key);
+      // if ML failed, keep showing the last good card instead of blanking it
+      startHereCache.set(key, { value: value || (old && old.value) || null, exp: Date.now() + (value ? START_OK_MS : START_FAIL_MS) });
+      return startHereCache.get(key).value;
+    })
+    .catch(() => null)
+    .finally(() => inflight.delete(key));
+  inflight.set(key, p);
+  return p;
+}
+
 async function summary(userId, minutes = 20) {
   const st = await status(userId);
   const level = await liveLevel(userId, st.placement);
   let startHere = null;
   if (st.done) {
-    const plan = await adaptive.buildStudyPlan(userId, { minutes });
-    if (plan && !plan.empty) startHere = adaptive.startHere(plan.plan);
+    const key = `${userId}|${minutes}`;
+    const hit = startHereCache.get(key);
+    if (hit) {
+      startHere = hit.value;
+      if (hit.exp <= Date.now()) refreshStartHere(userId, minutes, key);        // stale: refresh behind the scenes
+    } else {
+      const p = refreshStartHere(userId, minutes, key);
+      startHere = await Promise.race([p, new Promise((r) => setTimeout(() => r(null), WAIT_MS))]);
+    }
   }
   return { placementDone: st.done, canRetake: st.canRetake, placement: st.placement, level, startHere };
 }

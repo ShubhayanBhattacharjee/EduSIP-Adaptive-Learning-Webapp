@@ -30,6 +30,8 @@ const responseSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 responseSchema.index({ user: 1, createdAt: -1 });
+responseSchema.index({ user: 1, subject: 1, createdAt: -1 });   // dashboard + knowledgeScore: one student's answers in a subject
 responseSchema.index({ topic: 1, createdAt: -1 });
+responseSchema.index({ createdAt: -1 });   // admin + super admin "last 7 / 30 days" counts
 
 module.exports = mongoose.model("Response", responseSchema);

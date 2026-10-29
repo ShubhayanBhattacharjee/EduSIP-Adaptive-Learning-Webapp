@@ -149,23 +149,36 @@ exports.getAnalytics = async (req, res) => {
   try {
     // Old questions have no status field, so "not pending and not rejected" keeps them counted.
     const approved = { status: { $nin: ["pending", "rejected"] } };
+    const week = new Date(Date.now() - 7 * 864e5);
 
-    const totalUsers = await User.countDocuments();
-    const totalQuestionsInDB = await Question.countDocuments(approved);
-    const pendingQuestions = await Question.countDocuments({ status: "pending" });
-
-    // Aggregation for subject analytics (approved questions only)
-    const subjectStats = await Question.aggregate([
-      { $match: approved },
-      {
-        $group: {
-          _id: "$subject",
-          totalQuestions: { $sum: 1 },
-          easy: { $sum: { $cond: [{ $eq: ["$difficulty", "easy"] }, 1, 0] } },
-          medium: { $sum: { $cond: [{ $eq: ["$difficulty", "medium"] }, 1, 0] } },
-          hard: { $sum: { $cond: [{ $eq: ["$difficulty", "hard"] }, 1, 0] } },
+    // Every query here is independent, so run them all at once
+    const [
+      totalUsers, totalQuestionsInDB, pendingQuestions, subjectStats,
+      byRole, newUsers7d, answers7d, active7d, unused, tooEasy, tooHard, pendingTeachers,
+    ] = await Promise.all([
+      User.estimatedDocumentCount(),
+      Question.countDocuments(approved),
+      Question.countDocuments({ status: "pending" }),
+      Question.aggregate([
+        { $match: approved },
+        {
+          $group: {
+            _id: "$subject",
+            totalQuestions: { $sum: 1 },
+            easy: { $sum: { $cond: [{ $eq: ["$difficulty", "easy"] }, 1, 0] } },
+            medium: { $sum: { $cond: [{ $eq: ["$difficulty", "medium"] }, 1, 0] } },
+            hard: { $sum: { $cond: [{ $eq: ["$difficulty", "hard"] }, 1, 0] } },
+          },
         },
-      },
+      ]),
+      User.aggregate([{ $group: { _id: "$role", n: { $sum: 1 } } }]),
+      User.countDocuments({ createdAt: { $gte: week } }),
+      Response.countDocuments({ createdAt: { $gte: week } }),
+      Response.aggregate([{ $match: { createdAt: { $gte: week } } }, { $group: { _id: "$user" } }, { $count: "n" }]),
+      Question.countDocuments({ ...approved, ...FLAG_FILTERS.unused }),
+      Question.countDocuments({ ...approved, ...FLAG_FILTERS.tooEasy }),
+      Question.countDocuments({ ...approved, ...FLAG_FILTERS.tooHard }),
+      User.countDocuments({ role: "teacher", teacherApproved: false }),
     ]);
 
     const subjects = subjectStats.map((s) => ({
@@ -176,18 +189,6 @@ exports.getAnalytics = async (req, res) => {
       hard: s.hard,
     }));
 
-    const week = new Date(Date.now() - 7 * 864e5);
-    const [byRole, newUsers7d, answers7d, active7d, unused, tooEasy, tooHard, pendingTeachers] = await Promise.all([
-      User.aggregate([{ $group: { _id: "$role", n: { $sum: 1 } } }]),
-      User.countDocuments({ createdAt: { $gte: week } }),
-      Response.countDocuments({ createdAt: { $gte: week } }),
-      Response.distinct("user", { createdAt: { $gte: week } }),
-      Question.countDocuments({ ...approved, ...FLAG_FILTERS.unused }),
-      Question.countDocuments({ ...approved, ...FLAG_FILTERS.tooEasy }),
-      Question.countDocuments({ ...approved, ...FLAG_FILTERS.tooHard }),
-      User.countDocuments({ role: "teacher", teacherApproved: false }),
-    ]);
-
     res.json({
       success: true,
       totalUsers,
@@ -195,7 +196,7 @@ exports.getAnalytics = async (req, res) => {
       pendingQuestions,
       subjects,
       usersByRole: Object.fromEntries(byRole.map((r) => [r._id, r.n])),
-      newUsers7d, answers7d, activeStudents7d: active7d.length, pendingTeachers,
+      newUsers7d, answers7d, activeStudents7d: active7d[0] ? active7d[0].n : 0, pendingTeachers,
       questionHealth: { unused, tooEasy, tooHard },
     });
   } catch (error) {
@@ -206,7 +207,6 @@ exports.getAnalytics = async (req, res) => {
     });
   }
 };
-
 const LEVELS = ["easy", "medium", "hard"];
 
 // Use the spelling already stored in the database, so "maths" never creates a second subject.

@@ -21,35 +21,79 @@ exports.getAnalytics = async (req, res) => {
 
     const userObjId = new mongoose.Types.ObjectId(userId);
 
-    // 👤 USER INFO
-    const user = await User.findById(userId).select(
-      "streak activityDates username fullname bio skills email"
-    );
+        // Run every independent query at the same time instead of one after another
+    const [
+      user,
+      facet,
+      recentResponses,
+      lastResponses,
+      latestQuiz,
+      learning,
+    ] = await Promise.all([
+      User.findById(userId)
+        .select("streak activityDates username fullname bio skills email")
+        .lean(),
+
+      // One pass over this student's responses (no join with questions): per-subject and per-difficulty totals.
+      // Needs "subject" saved on each Response (run scripts/backfill-response-subject.js once for old ones).
+      Response.aggregate([
+        { $match: { user: userObjId } },
+        {
+          $facet: {
+            subjects: [
+              { $match: { subject: { $type: "string", $ne: "" } } },
+              {
+                $group: {
+                  _id: "$subject",
+                  totalQuestions: { $sum: 1 },
+                  correctAnswers: { $sum: { $cond: ["$isCorrect", 1, 0] } },
+                  cleanCorrect: { $sum: { $cond: [{ $eq: ["$success", true] }, 1, 0] } },
+                  totalTime: { $sum: { $ifNull: ["$timeTaken", 0] } },
+                },
+              },
+            ],
+            difficulty: [
+              {
+                $group: {
+                  _id: "$difficulty",
+                  total: { $sum: 1 },
+                  correct: { $sum: { $cond: ["$isCorrect", 1, 0] } },
+                },
+              },
+            ],
+          },
+        },
+      ]),
+
+      Response.find({ user: userId })
+        .sort({ createdAt: -1 })
+        .limit(15)
+        .select("difficulty isCorrect createdAt")
+        .lean(),
+
+      Response.find({ user: userId })
+        .sort({ createdAt: 1 })
+        .limit(30)
+        .select("isCorrect createdAt")
+        .lean(),
+
+      QuizAttempt.findOne({ user: userId })
+        .sort({ createdAt: -1 })
+        .select("recommendation")
+        .lean(),
+
+      placement.summary(userId).catch((e) => {
+        console.error("Dashboard level summary failed:", e.message);
+        return { placementDone: false, level: null, startHere: null, placement: null };
+      }),
+    ]);
+
+    const subjectData = (facet[0] && facet[0].subjects) || [];
+    const difficultyStats = (facet[0] && facet[0].difficulty) || [];
 
     /* =====================================================
        1️⃣ SUBJECT STATS
     ===================================================== */
-    const subjectData = await Response.aggregate([
-      { $match: { user: userObjId } },
-      {
-        $lookup: {
-          from: "questions",
-          localField: "question",
-          foreignField: "_id",
-          as: "questionDetails",
-        },
-      },
-      { $unwind: "$questionDetails" },
-      {
-        $group: {
-          _id: "$questionDetails.subject",
-          totalQuestions: { $sum: 1 },
-          correctAnswers: { $sum: { $cond: ["$isCorrect", 1, 0] } },
-          cleanCorrect: { $sum: { $cond: [{ $eq: ["$success", true] }, 1, 0] } },     // right AND no hint
-          totalTime: { $sum: { $ifNull: ["$timeTaken", 0] } },
-        },
-      },
-    ]);
 
     const subjects = subjectData.map((s) => ({
       subject: s._id,
@@ -94,10 +138,7 @@ exports.getAnalytics = async (req, res) => {
     /* =====================================================
        3️⃣ DIFFICULTY TREND
     ===================================================== */
-    const recentResponses = await Response.find({ user: userId })
-      .sort({ createdAt: -1 })
-      .limit(15)
-      .select("difficulty isCorrect createdAt");
+
 
     const difficultyTrend = recentResponses
       .reverse()
@@ -117,10 +158,6 @@ exports.getAnalytics = async (req, res) => {
     /* =====================================================
        4️⃣ IMPROVEMENT TREND
     ===================================================== */
-    const lastResponses = await Response.find({ user: userId })
-      .sort({ createdAt: 1 })
-      .limit(30)
-      .select("isCorrect createdAt");
 
     let runningCorrect = 0;
 
@@ -138,16 +175,7 @@ exports.getAnalytics = async (req, res) => {
     /* =====================================================
        5️⃣ DIFFICULTY PERFORMANCE
     ===================================================== */
-    const difficultyStats = await Response.aggregate([
-      { $match: { user: userObjId } },
-      {
-        $group: {
-          _id: "$difficulty",
-          total: { $sum: 1 },
-          correct: { $sum: { $cond: ["$isCorrect", 1, 0] } },
-        },
-      },
-    ]);
+
 
     const difficultyPerformance = difficultyStats.map((d) => ({
       difficulty: d._id,
@@ -169,9 +197,6 @@ exports.getAnalytics = async (req, res) => {
        🔥 7️⃣ SMART RECOMMENDATION (FIXED)
        👉 Uses stored recommendation (NO DUPLICATION)
     ===================================================== */
-    const latestQuiz = await QuizAttempt.findOne({ user: userId })
-      .sort({ createdAt: -1 })
-      .select("recommendation");
 
     const recommendations = latestQuiz?.recommendation || {
       message: "No recommendations yet.",
@@ -184,16 +209,11 @@ exports.getAnalytics = async (req, res) => {
        LEVEL + "START HERE" (from the placement test, kept current by every answer)
        placementDone=false  -> the frontend should send the student to the placement test
     ===================================================== */
-    let learning = { placementDone: false, level: null, startHere: null, placement: null };
-    try {
-      learning = await placement.summary(userId);
-    } catch (e) {
-      console.error("Dashboard level summary failed:", e.message);
-    }
-
     /* =====================================================
        ✅ FINAL RESPONSE
     ===================================================== */
+    const sortedSubjects = [...subjects].sort((a, b) => b.accuracy - a.accuracy);
+
     res.status(200).json({
       success: true,
 
@@ -213,7 +233,13 @@ exports.getAnalytics = async (req, res) => {
         avgResponseTime,
       },
 
-      subjects: subjects.sort((a, b) => b.accuracy - a.accuracy),
+      subjects: sortedSubjects,
+
+      // replaces the separate GET /dashboard/performance call
+      performance: {
+        strongSubject: sortedSubjects[0]?.subject || null,
+        weakSubject: sortedSubjects.length ? sortedSubjects[sortedSubjects.length - 1].subject : null,
+      },
 
       difficultyTrend,
       improvementTrend,
@@ -244,104 +270,32 @@ exports.getAnalytics = async (req, res) => {
 
 
 
-// --- Strength & Weak Subject ---
 exports.getStudentPerformance = async (req, res) => {
-
   try {
+    const userObjId = new mongoose.Types.ObjectId(req.user.id);
 
-    const userId = req.user.id;
+    // One query: join only the two fields we need from each question, then count per subject in the database
+    const rows = await Response.aggregate([
+      { $match: { user: userObjId, subject: { $type: "string", $ne: "" } } },
+      { $group: { _id: "$subject", total: { $sum: 1 }, correct: { $sum: { $cond: ["$isCorrect", 1, 0] } } } },
+    ]);
 
-    const responses = await Response.find({ user: userId });
-
-    if (!responses.length) {
-      return res.json({
-        success: true,
-        strongSubject: null,
-        weakSubject: null,
-        details: []
-      });
+    if (!rows.length) {
+      return res.json({ success: true, strongSubject: null, weakSubject: null, details: [] });
     }
 
-
-
-    const questionIds = responses.map(r => r.question);
-
-    const questions = await Question.find({
-      _id: { $in: questionIds }
-    });
-
-    const questionMap = {};
-
-    questions.forEach(q => {
-      questionMap[q._id] = q;
-    });
-
-
-
-    const subjectStats = {};
-
-    for (const r of responses) {
-
-      const question = questionMap[r.question];
-
-      if (!question) continue;
-
-      if (!subjectStats[question.subject]) {
-        subjectStats[question.subject] = {
-          correct: 0,
-          total: 0
-        };
-      }
-
-      subjectStats[question.subject].total += 1;
-
-      if (r.selectedAnswer === question.correctAnswer) {
-        subjectStats[question.subject].correct += 1;
-      }
-
-    }
-
-
-
-    const accuracies = Object.keys(subjectStats).map(subject => {
-
-      const { correct, total } = subjectStats[subject];
-
-      return {
-        subject,
-        accuracy: (correct / total) * 100
-      };
-
-    });
-
-
-
-    accuracies.sort((a, b) => b.accuracy - a.accuracy);
-
-
+    const accuracies = rows
+      .map((r) => ({ subject: r._id, accuracy: (r.correct / r.total) * 100 }))
+      .sort((a, b) => b.accuracy - a.accuracy);
 
     res.json({
-
       success: true,
-
       strongSubject: accuracies[0]?.subject || null,
-
       weakSubject: accuracies[accuracies.length - 1]?.subject || null,
-
-      details: accuracies
-
+      details: accuracies,
     });
-
-  }
-  catch (error) {
-
+  } catch (error) {
     console.error("Student performance error:", error);
-
-    res.status(500).json({
-      success: false,
-      message: "Server error"
-    });
-
+    res.status(500).json({ success: false, message: "Server error" });
   }
-
 };

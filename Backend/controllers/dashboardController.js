@@ -154,7 +154,28 @@ exports.getAnalytics = async (req, res) => {
           String(r.difficulty || "medium").charAt(0).toUpperCase() +
           String(r.difficulty || "medium").slice(1),
       }));
-
+          /* LEVEL TREND: the student's level after each answer, for the topic they practised most recently */
+    let levelTrend = { subject: null, topic: null, points: [] };
+    try {
+      const latest = await Response.findOne({ user: userId, mode: "practice", abilityAfter: { $ne: null } })
+        .sort({ createdAt: -1 }).select("subject topic").lean();
+      if (latest) {
+        const rows = await Response.find({
+          user: userId, mode: "practice", subject: latest.subject, topic: latest.topic, abilityAfter: { $ne: null },
+        }).sort({ createdAt: -1 }).limit(30).select("abilityAfter success").lean();
+        levelTrend = {
+          subject: latest.subject,
+          topic: latest.topic,
+          points: rows.reverse().map((r, i) => ({
+            n: i + 1,
+            level: Number(Math.min(10, Math.max(1, 5 + 2 * r.abilityAfter)).toFixed(2)),   // smooth value; the level you see is this rounded
+            correct: !!r.success,
+          })),
+        };
+      }
+    } catch (e) {
+      console.error("Level trend failed:", e.message);
+    }
     /* =====================================================
        4️⃣ IMPROVEMENT TREND
     ===================================================== */
@@ -242,6 +263,7 @@ exports.getAnalytics = async (req, res) => {
       },
 
       difficultyTrend,
+      levelTrend,
       improvementTrend,
       difficultyPerformance,
 

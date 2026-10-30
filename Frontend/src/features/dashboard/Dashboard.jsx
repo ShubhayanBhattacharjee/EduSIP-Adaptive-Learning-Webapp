@@ -174,6 +174,7 @@ const Dashboard = () => {
     const improv = a.improvementTrend || [];
     const diffTrend = a.difficultyTrend || [];
     const diffPerf = a.difficultyPerformance || [];
+    const lt = a.levelTrend || { points: [] };
     return {
       subjectNames: subj.map((s) => s.subject),
       subjectAcc: subj.map((s) => s.accuracy),
@@ -184,6 +185,9 @@ const Dashboard = () => {
       diffPerfLabels: diffPerf.map((d) => String(d.difficulty || "").toUpperCase()),
       diffTrendData: diffTrend.map((d) => d.level),
       diffTrendLabels: diffTrend.map((d) => d.label),
+      levelTrendData: lt.points.map((p) => p.level),
+      levelTrendLabels: lt.points.map((p) => `#${p.n}`),
+      levelTrendTitle: lt.topic ? `${lt.subject} · ${lt.topic}` : "",
     };
   }, [analytics]);
 
@@ -466,8 +470,8 @@ const Dashboard = () => {
                     <AnalyticsChart type="bar" data={charts.diffPerfData} labels={charts.diffPerfLabels} max={100} suffix="%" height={270} />
                   </ChartCard>
 
-                  <ChartCard title="Difficulty progression" tag="Level over time" span={4} empty={!charts.diffTrendData.length}>
-                    <AnalyticsChart type="line" data={charts.diffTrendData} labels={charts.diffTrendLabels} height={270} />
+                  <ChartCard title="Your level over time" tag={charts.levelTrendTitle || "Level after each answer"} span={4} empty={!charts.levelTrendData.length}>
+                    <AnalyticsChart type="line" data={charts.levelTrendData} labels={charts.levelTrendLabels} max={10} height={270} />
                   </ChartCard>
                 </div>
               </div>
